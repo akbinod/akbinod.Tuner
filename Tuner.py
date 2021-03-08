@@ -52,10 +52,13 @@ class Tuner:
             # the next line will kick off a refresh of the image
             if not self.on_update is None: self.on_update(self.name,self.get_value())
             # show the new parameter for 10 seconds
-            cv2.displayStatusBar(self.tuner.window,
+            try:
+                cv2.displayStatusBar(self.tuner.window,
                                     self.name + ":" + str(self.get_display_value())
                                     ,10_000
                                 )
+            except:
+                pass
             return
 
         def get_value(self):
@@ -157,21 +160,23 @@ class Tuner:
             except:
                 raise ValueError("Default item not found in dict_like.")
 
+            # given the setup in init, we want the list index back
             super().__init__(tuner, name
                                 , data_list=data_list
                                 , display_list=display_list
                                 , default_item=default_item_key
-                                , cb_on_update=cb_on_update)
+                                , cb_on_update=cb_on_update
+                                , return_index=True)
 
             return
-        # def get_value(self):
-        #     ret = super().get_value()
-        #     key =  list(self.data.keys())[ret]
-        #     if self.__return_key:
-        #         ret =key
-        #     else:
-        #         ret = self.data[key]
-        #     return ret
+        def get_value(self):
+            key_index = super().get_value()
+            key =  list(self.data.keys())[key_index]
+            if self.__return_key:
+                ret =key
+            else:
+                ret = self.data[key]
+            return ret
 
     def __init__(self, name, *
                 , cb_main = None

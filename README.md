@@ -24,7 +24,7 @@ def find_circles(image, radius):
 Including Tuner in your workflow, this becomes:
 ```{python}
 #new import
-from Tuner import TunedFunction
+import TunedFunction
 
 #new decorator
 @TunedFunction()
@@ -188,10 +188,10 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 <H2>The Tuner Class</H2>
 
 Most of the basics have been detailed above. With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, but there are added features you can access. If you like the UX of `@TunedFunction`, see the benefits section down below to determine if it's worth it to wade through the rest of this.
-The basic pattern is about the same: 
+The basic pattern is about the same:
 1. accept a `tuner` param...
 2. new: get the image you should work on from `tuner.image`...
-3. set `tuner.image` and `tuner.results` before you return... 
+3. set `tuner.image` and `tuner.results` before you return...
 
 Which is basically what you can do with <code>@TunedFunction</code> already, and with much less code to boot. The difference lies in a few workflow features (which admittedly have been developed for an audience of one - me!)
 
@@ -209,18 +209,17 @@ The workflow basically looks like this:
 <ol>
 <li>Instantiate tuner.Choose between one and two functions to track. </li>
 
--There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. 
+-There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream.
 
-		- tuner.image and tuner.results set from cb_main are displayed in the main window.
-		- tuner.image and tuner.retults set in cb_downstream are displayed in a second window which does not have trackbars.
-
+- tuner.image and tuner.results set from cb_main are displayed in the main window.
+- tuner.image and tuner.retults set in cb_downstream are displayed in a second window which does not have trackbars.
 - Tuner will track the images set by each of these separately. It combines the results of both, along with args (tuned parameters) and dumps the whole lot to a json file when you press F3.
-- Each function is called with a fresh copy of the current image. See below for more on images passed in to process.
+- Each call to cb_main, and cb_downstream is made with a fresh copy of the current image. See below for more on images passed in to process.
 
 <li>Add hyper-parameters to tune via the <code>tuner.track_*</code>  set of calls. Since these are not curried into target, they can be anything you want to tune - without reference to a function parameter.</li>
 <li>Launch the tuning loop by calling <code>tuner.begin()</code>. Pass in:</li>
 
-	- None: when you do not plan to use the image Tuner holds for you
+- None: when you do not plan to use the image Tuner holds for you
 	- A single image: typically when you are still just getting started with your code, and working one image at a time.
 	- A list of file names: typically, when you have a set of test images you want to put through target. Tuner will cycle through all the images until you exit. Esc cancels the stack, any other key will advance the carousel.
 
@@ -233,7 +232,7 @@ Besides the above, it's all pretty much the same. You do have access to a few ad
 <li>View the results of two processes in side by side windows. A few use cases for side-by-side comparison of images:
 
 - your pre-processing output in main; and traffic sign identification output in downstream;
-- Template Matching output in one vs. Harris Corners output in the other; 
+- Template Matching output in one vs. Harris Corners output in the other;
 - what your noble code found, vs. what the built in CV functions found (I find this view particularly revealing; also, character building).
 
 </li>
@@ -243,3 +242,4 @@ Besides the above, it's all pretty much the same. You do have access to a few ad
 
 The accompanying sample files illustrate some uses. Play around, and let me know if you think of ways to improve this.
 </p>
+

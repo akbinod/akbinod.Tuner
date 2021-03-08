@@ -98,10 +98,10 @@ class TunedFunction(DecoratorBase):
 			elif ty == list:
 				# track from a list
 				# nothing fancy here like display_list etc
-				self.tuner.track_list(name,arg)
+				self.tuner.track_list(name,arg,return_index=False)
 			elif ty == dict:
 				# track from a dict/json
-				self.tuner.track_dict(name,arg)
+				self.tuner.track_dict(name,arg, return_key=False)
 			else:
 				# Probably None. At any rate, something we cannot tune
 				# so curry it. Shunt it over to the kwargs for target.
