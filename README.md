@@ -91,13 +91,14 @@ Short answer: some of the parameters to your function. Those that meet the crite
 @TunedFunction works with the following subset of target's parameters:
 <ul>
 <li>Positional arguments...</li>
+<ul>
+<li>If your launch call looks like draw_circle(50) then radius is tuned.
+<li>If your launch call looks like draw_circle(radius=50), then radius is NOT tuned.
+This is by design; it gives you a way of excluding a parameter from tuning.
+</ul>
 
--If your launch call looks like draw_circle(50) then radius is tuned.
--If your launch call looks like draw_circle(radius=50), then radius is NOT tuned.
--This is by design; it gives you a way of excluding a parameter from tuning.
-
-<li>...to which your launch call sends arguments of the following types:</li>
--int,boolean,list,dict; tuples of 3 ints also work.
+<li>Positional arguments...to which your launch call sends arguments of the following types:</li>
+-int, boolean, list, and dict. Tuples of 3 ints also work, and are interpreted in a special way.
 </ul>
 
 All other arguments (including kwargs) are passed on untouched and those parameters are not tuned. Images are typically passed around as np.ndarray objects, or as strings representing file names; TunedFunction passes these types through untouched.
