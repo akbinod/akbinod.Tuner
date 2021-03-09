@@ -772,7 +772,7 @@ class Tuner:
     @staticmethod
     def dump_json(j , dir = wip_dir, fname="dump_json.json", mode = 'a+'):
 
-        fname = get_file_path(dir,fname,".json")
+        fname = Tuner.get_file_path(dir,fname,".json")
         try:
             with open(fname,mode) as f:
                 try:
@@ -789,9 +789,9 @@ class Tuner:
     @staticmethod
     def dump_to_file(vals:np.array, *, dir = wip_dir, fname="", mode = 'w'):
         if fname == "":
-            fname = get_temp_file(suffix=".csv")
+            fname = Tuner.get_temp_file(suffix=".csv")
         else:
-            fname = get_file_path(dir,fname, ".csv")
+            fname = Tuner.get_file_path(dir,fname, ".csv")
 
         with open(fname, mode) as f:
             for i in range(vals.shape[0]):
