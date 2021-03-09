@@ -26,7 +26,6 @@ class TunedFunction(DecoratorBase):
 		return
 
 	def intercept(self, tuner):
-		booyah = 99
 		# Called by the tuner - this is where
 		# all the calls from the tuner are going to come
 		# while the original call continues to be blocked

@@ -194,16 +194,10 @@ class Tuner:
                 , cb_downstream = None
                 ):
         '''
-        cb_main: A function that accepts an image as the first param. Must also accept a
-                    kwarg called 'tuner'. You can access properties of Tuner like 'thumbnail'
-                    or 'results' via this parameter. The image that Tuner provides to cb_main
-                    should be passed to Tuner in a call to the 'show' method.
-        cb_downstream: Similar to cb_main, this is a downstream function to be called after the
-                    call to cb_main. It will receive a new copy of the image passed to cb_main.
-        Usage:
-        One use case is to send in a ref to your pre-processing function in cb_main and
-        a ref to your template matching function in cb_downstream.
-        See readme.md for more details.
+        Please see the readme.
+        cb_main: The target of tuning.
+        cb_downstream: Similar to cb_main, this is a downstream function to be called after cb_main.
+        This is not tuned, but it can display its results in a downstream window.
         '''
 
         self.__window_name = name
@@ -212,6 +206,7 @@ class Tuner:
 
         self.__args = {}
         self.__params = {}
+        # the safe default
         self.__calling_main = True
 
         # primary function to tune with its attendant image and other params
@@ -244,15 +239,31 @@ class Tuner:
         pass
 
     def track(self, name, max, min=None, default=None):
+        '''
+        Add an int parameter to be tuned.
+        Please see the readme for details.
+        '''
         tb = Tuner.__tb(self,name,min=min,max=max,default=default, cb_on_update=self.__update_arg)
         self.__params[name] = tb
         return
     def track_boolean(self, name, default=False):
+        '''
+        Add a boolean parameter to be tuned.
+        Please see the readme for details.
+        '''
         default = False if default is None else default
         tb = Tuner.__tb_boolean(self,name,default=default, cb_on_update=self.__update_arg)
         self.__params[name] = tb
         return
     def track_list(self, name, data_list, *, default_item=None, display_list=None, return_index=True):
+        '''
+        Add a list of values to be tuned.Please see the readme for details.
+        data_list: A list of values.
+        default_item: Initial pick.
+        display_list: An item corresponding to the selected index is used for display in Tuner.
+        return_index: When True, the selection index is returned, otherwise the selected item in data_list is returned.
+        '''
+
         if not data_list is None:
             tb = Tuner.__tb_list(self,name
                                     ,data_list=data_list
@@ -264,6 +275,13 @@ class Tuner:
             self.__params[name] = tb
         return
     def track_dict(self, name, dict_like, *, default_item_key=None, return_key=True):
+        '''
+        Add a list of values to be tuned. Dict keys are displayed as selected values.
+        dict_like: Typically a dict or a json object.
+        default_item: Initial pick.
+        return_key: When True, the selected key is returned, otherwise, its object.
+        '''
+
         if not dict_like is None:
             tb = Tuner.__tb_dict(self,name
                                     ,dict_like=dict_like
@@ -356,10 +374,10 @@ class Tuner:
 
     def review(self, fnames:list, img_title=None,delay=2_000):
         '''
-        Does a 2 second review of the image - unless interrupted.
+        Does a 2 second review of each image in the list unless interrupted.
         Sit back and enjoy the slideshow, saving image/result files
-        as you go. Typically used in your regression test:
-        1. create a tuner setting defaults to the best of your knowledge
+        as you go. Typically used in your regression test.
+        1. create a tuner and set defaults to the best of your knowledge
         2. call this to flip through the images from your project
         Leave img_title null to use the name of the file being shown.
         '''
@@ -381,8 +399,11 @@ class Tuner:
 
     def begin(self, fnames:list, img_title=None):
         '''
-        Display the trackbar window.
-        When img_title is none, it will be inferred from the image file name.
+        Display the Tuner window.
+        fnames: See readme. can be None, a single image, or a list of file names.
+                When a list, each image is processed until interruped via the keyboard.
+                Hit Esc to cancel the whole stack.
+        img_title: When none, it will be inferred from the image file name.
         '''
 
         return self.review(fnames=fnames,img_title=img_title,delay=0)
@@ -397,6 +418,8 @@ class Tuner:
     def save_results(self, fname):
         '''
         Saves the set of results to fname, falling back to {image_title}.json, and temp file name.
+        The fille includes the last set of results set via the .results attribute, and the current
+        args (hyper-parameter values).
         '''
         if fname is None: fname = self.__image_title
         self.__save_results(fname)
@@ -440,6 +463,9 @@ class Tuner:
         self.__refresh()
     @property
     def args(self):
+        '''
+        A dictionary containing all the tuned args, and their current settings.
+        '''
         # this looks like a slower way of doing things,
         # especially given the __update_arg just up above;
         # but it actually avoids a whole lot of refresh
@@ -453,26 +479,44 @@ class Tuner:
 
     @property
     def main_image(self):
+        '''
+        The image as updated by the main function - the target of tuning.
+        '''
         return self.__image_main
 
     @property
     def main_results(self):
+        '''
+        Results as set by the main function - the target of tuning.
+        '''
         if self.__results_main is None:
             self.__results_main = {}
         return self.__results_main
 
     @property
     def downstream_image(self):
+        '''
+        The image as updated by the downstream function.
+        '''
+
         return self.__image_downstream
 
     @property
     def downstream_results(self):
+        '''
+        The results as set by the downstream function.
+        '''
         return self.__results_downstream
 
     @property
     def results(self):
+        '''
+        Returns json which includes the image title, the current state of tuned args, the results set by main, and the results set by downstream.
+        '''
+        # return the combined results, and add args in there for good measure
         j = {}
         j["image_title"] = self.__img_title
+        j["args"] = self.args
         j["main"] = self.main_results
         j["downstream"] = self.downstream_results
         return j
@@ -487,9 +531,9 @@ class Tuner:
 
     @property
     def image(self):
-        # Accessed by cb_main and cb_downstream
-        # Always return a fresh copy of the user
-        # supplied image.
+        '''
+        Always return a fresh copy of the user supplied image.
+        '''
         return np.copy(self.__unprocessed_image)
 
     @image.setter
@@ -502,13 +546,22 @@ class Tuner:
 
     @property
     def window(self):
+        '''
+        Window title.
+        '''
         return self.__window_name
 
     @property
     def downstream_window(self):
+        '''
+        Downstream window title.
+        '''
         return self.window + " :Downstream"
     @property
     def thumbnail(self):
+        '''
+        This image is inserted into the upper left hand corner of the main image. Keep it very small.
+        '''
         if self.__calling_main:
             return self.__thumbnail_main
         else:
@@ -550,7 +603,10 @@ class Tuner:
         return mn
 
     @staticmethod
-    def tuner_from_json(name, cb_main, cb_downstream, json_def):
+    def tuner_from_json(name, cb_main:function, cb_downstream:function, json_def:dict):
+        '''
+        Returns an instance of Tuner configured to the json you pass in.
+        '''
         tuner = Tuner(name,cb_main=cb_main,cb_downstream=cb_downstream)
         keys = list(json_def.keys())
         for key in keys:
@@ -585,7 +641,7 @@ class Tuner:
         tuner that meets some goals like blurring, canny edge detection, etc.
         Pass it the downstream function that consumes the tuned parameters
         to meet your project goals; e.g., finding lines, or matching templates.
-        Call the show() method on the returned object, passing it your image.
+        Call the begin() method on the returned object, passing it your image.
 
         You can use this to develop pre-processing presets. Get to a point
         with the trackbars that you like, and then save the results to file
