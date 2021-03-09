@@ -188,12 +188,12 @@ One of the following must apply to target (main and downstream):
 The workflow basically looks like this:
 <ol>
 <li>Instantiate tuner.Choose between one and two functions to watch. </li>
--There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. When downstream accesses <code>tuner.image</code>, it gets the results of main.
+-There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. When <code>downstream</code> accesses <code>tuner.image</code>, it too gets a fresh copy the current image being processed. To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.
 
 - tuner.image and tuner.results set from cb_main are displayed in the main window.
-- tuner.image and tuner.retults set in cb_downstream are displayed in a second window which does not have trackbars.
+- tuner.image and tuner.results set in <code>downstream</code> are displayed in a second window which does not have trackbars. Usually, the downstream image obscures the main one; you'll need to move it out of the way.
 - Tuner will save them separately on F2.
-- It combines the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your compatible with json serialization.
+- It combines the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your results compatible with json serialization.
 
 <li>Add hyper-parameters to tune via the <code>tuner.track_*</code>  set of calls. Since these are not curried into target, they can be anything you want to tune - without reference to function parameters.</li>
 <li>Launch the tuning loop by calling <code>tuner.begin()</code>. Pass in:</li>
@@ -215,8 +215,8 @@ Besides the above, it's all pretty much the same. You do have access to a few ad
 <li>Template Matching output in one vs. Harris Corners output in the other;</li>
 <li>what your noble code found, vs. what the built in CV functions found (I find this view particularly revealing; also, character building).</li>
 </ul>
-<li>Access to features of Tuner like <code>tuner.review()</code> etc. Please see the dostrings for more information.</li>
-<li>Finally, as anyone who has written Decorators know, things can get squirrelly when exceptions take place... you could avoid that whole mess with explicit instantiation of Tuner.</li>
+<li>Access to features of Tuner like <code>tuner.review()</code> etc. Please see the dostrings for more information. A couple of the more interesting static methods are <code>tuner_from_json()</code> and <code>minimal_preprocessor()</code>. Some day, I'll get around to implementing <code>grid_search()</code> </li>
+<li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place... you could avoid that whole mess with explicit instantiation of Tuner.</li>
 </ul>
 
 The accompanying sample files illustrate some uses. Play around, and let me know if you think of ways to improve this.
@@ -224,7 +224,10 @@ The accompanying sample files illustrate some uses. Play around, and let me know
 
 ### OpenCV GUI
 Your experience of this GUI is going to be determined by the version of various components - OpenCV, and the Qt backend. Tuner does take advantage of a couple of the features of the Qt backend, but those are guarded in `try` blocks, so you shouldn't bomb.
-If you're in CS-6476, you've installed opencv-contrib-python. If not, may I suggest...
+If you're in CS-6476, you've installed <code>opencv-contrib-python</code>. If not, might I suggest...
+
+If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contrib-python</code>
+If you don't see the overlay after each trackbar change, you are missing <code>Qt backend</code>
 
 ### Important Safety Tip
 I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but if you try to serialize an np.ndarray it'll blow up - gloriously.
