@@ -60,7 +60,7 @@ find_circles(image, (50,5,10))
 The first call above creates a trackbar that lets you slide the radius between 0 and 50.
 The second call is taken to mean that the trackbar should have <code>max=50, min=5, default = 10</code>. The trackbar is set to <code>default</code> when you first see the GUI.
 
-<b>And that's pretty much it! This is all you need to know to get up and running and you're happy receiving ints as arguments. Read on if you would like to receive json, etc.
+<b>And that's pretty much it! This is all you need to know to get up and running; and this is all you need if you're happy receiving ints as args. Read on if you would like to receive json, etc.
 </b>
 <H2>@TunedFunction() Decorator</H2>
 Implict Tuner instantiation. Although you do give up some flexibility, and a few features, this is the quickest way of getting started with tuning your CV code.
