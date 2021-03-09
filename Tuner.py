@@ -3,7 +3,16 @@ import matplotlib.pyplot as plt
 import cv2
 import copy
 import os
-import util
+import json
+import tempfile
+
+HIGHLIGHT_COLOR = (173,255,47)
+HIGHLIGHT_THICKNESS_LIGHT = 1
+HIGHLIGHT_THICKNESS_HEAVY = 2
+PUT_TEXT_FONT = cv2.FONT_HERSHEY_PLAIN
+PUT_TEXT_SMALL = 0.7
+PUT_TEXT_NORMAL = 1.0
+wip_dir = "."
 
 class tb_prop:
     def __init__(self, get_val_method):
@@ -34,8 +43,10 @@ class Tuner:
                                                 ,self.set_value)
             # create an attribute with the same name as the tracked property
             setattr(Tuner,name, tb_prop(self.get_value))
-            # trigger the tuner getting to know the arg
-            self.set_value(self.default)
+            # do not trigger the event - things are just getting set up
+            # the "begin()" and other methods will reach out for the args anyway
+            self._value = self.default
+            # self.set_value(self.default)
         def spec(self):
             # these must be ints, not floats
             return int(self.max), int(self.default)
@@ -356,6 +367,8 @@ class Tuner:
             # we got a list of names
             for fname in fnames:
                 img = cv2.imread(fname)
+                if img is None:
+                    raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
                 title = os.path.split(fname)[1] if img_title is None else img_title
                 ret  = self.__show(img,title,delay)
                 if not ret: break
@@ -390,9 +403,9 @@ class Tuner:
 
     def __save_image(self,fname):
         if fname is None or fname == "":
-            fname = util.get_temp_file(suffix=".tuned.png")
+            fname = Tuner.get_temp_file(suffix=".tuned.png")
         else:
-            fname = util.wip_dir + self._img_title + "tuned.png"
+            fname = Tuner.wip_dir + self._img_title + "tuned.png"
         cv2.imwrite(fname,self.__image_main)
         if not self.downstream_image is None:
             fname = fname.replace(".tuned.", ".downstream.")
@@ -401,10 +414,10 @@ class Tuner:
 
     def __save_results(self,fname):
         if fname is None or fname == "":
-            fname = util.get_temp_file(suffix=".json")
+            fname = Tuner.get_temp_file(suffix=".json")
         else:
-            fname = util.wip_dir + self._img_title + ".json"
-        util.dump_json(self.results,fname=fname)
+            fname = Tuner.wip_dir + self._img_title + ".json"
+        Tuner.dump_json(self.results,fname=fname)
 
         return
 
@@ -427,6 +440,15 @@ class Tuner:
         self.__refresh()
     @property
     def args(self):
+        # this looks like a slower way of doing things,
+        # especially given the __update_arg just up above;
+        # but it actually avoids a whole lot of refresh
+        # during trackbar init which can get really
+        # expensive out in userland
+        # Also, don't use a comprehension to replace - just update
+        for key in self.__params:
+            self.__args[key] =  self.__params[key].get_value()
+
         return self.__args
 
     @property
@@ -513,10 +535,10 @@ class Tuner:
             bt = 1
             tl = (3,3)
             br = (tl[0] + tn.shape[1] + (2*bt), tl[1] + tn.shape[0] + (2*bt))
-            cv2.rectangle(mn,tl,br,util.HIGHLIGHT_COLOR,thickness=bt)
+            cv2.rectangle(mn,tl,br,Tuner.HIGHLIGHT_COLOR,thickness=bt)
             # adjust for offset border
             tl = (tl[0] + bt, tl[1] + bt)
-            x,x1,y,y1 = util.image_to_array_indices(tl,img_shape=tn.shape)
+            x,x1,y,y1 = Tuner.image_to_array_indices(tl,img_shape=tn.shape)
 
             tn_dim = np.ndim(tn)
             if np.ndim(mn) == 3:
@@ -583,10 +605,10 @@ class Tuner:
             tuner.results = res
 
             # get the processed image
-            tuner.image = util.preprocess_to_spec(img,tuner.args)
+            tuner.image = Tuner.preprocess_to_spec(img,tuner.args)
             # process the thumbnail if one exists
             if not thumbnail is None:
-                tuner.thumbnail = util.preprocess_to_spec(thumbnail,tuner.args)
+                tuner.thumbnail = Tuner.preprocess_to_spec(thumbnail,tuner.args)
             return
 
         json_def={
@@ -662,3 +684,68 @@ class Tuner:
             pass
         return hist,bins,mid
 
+
+    @staticmethod
+    def get_temp_file(dir=wip_dir, suffix=".png"):
+        # we're just going to leave this file lying around
+        _, full_path_name = tempfile.mkstemp(suffix=suffix,dir=dir,text=True)
+
+        return full_path_name
+
+    @staticmethod
+    def get_file_path(dir, fname, ext=""):
+        duh = os.path.split(fname)
+        if duh[0] == "":
+            # no path provided in fname
+            if dir is None or dir == "":
+                dir = "./"
+            fname = dir + fname
+
+
+        duh = os.path.splitext(fname)
+        if duh[1] == "":
+            # no ext provided
+            fname += ext
+        else:
+            # fname has an extension
+            if not ext is None and ext != "":
+                # need to overwrite the extension
+                fname = duh[0] + ext
+        return fname
+
+    @staticmethod
+    def dump_json(j , dir = wip_dir, fname="dump_json.json", mode = 'a+'):
+
+        fname = get_file_path(dir,fname,".json")
+        try:
+            with open(fname,mode) as f:
+                try:
+                    f.write(json.dumps(j))
+                except:
+                    # could not get a formatted output
+                    f.write(str(j))
+                f.write("\n")
+        except:
+            # dont let this screw anything else up
+            pass
+        return
+
+    @staticmethod
+    def dump_to_file(vals:np.array, *, dir = wip_dir, fname="", mode = 'w'):
+        if fname == "":
+            fname = get_temp_file(suffix=".csv")
+        else:
+            fname = get_file_path(dir,fname, ".csv")
+
+        with open(fname, mode) as f:
+            for i in range(vals.shape[0]):
+                # f.write(f"a[{i}] = [" )
+                srow = ""
+                if vals.ndim > 1:
+                    for j in range(vals.shape[1]):
+                        if srow != "":
+                            srow += ","
+                        srow += str(vals[i,j])
+                else:
+                    srow = vals[i]
+                f.writelines(f"{srow}\n")
