@@ -188,7 +188,7 @@ One of the following must apply to target (main and downstream):
 The workflow basically looks like this:
 <ol>
 <li>Instantiate tuner.Choose between one and two functions to watch. </li>
--There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. When <code>downstream</code> accesses <code>tuner.image</code>, it too gets a fresh copy the current image being processed. To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.
+-There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. When <code>downstream</code> accesses <code>tuner.image</code>, it too gets a fresh copy the current image being processed (set later). To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.
 
 - tuner.image and tuner.results set from cb_main are displayed in the main window.
 - tuner.image and tuner.results set in <code>downstream</code> are displayed in a second window which does not have trackbars. Usually, the downstream image obscures the main one; you'll need to move it out of the way.
@@ -196,11 +196,12 @@ The workflow basically looks like this:
 - It combines the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your results compatible with json serialization.
 
 <li>Add hyper-parameters to tune via the <code>tuner.track_*</code>  set of calls. Since these are not curried into target, they can be anything you want to tune - without reference to function parameters.</li>
-<li>Launch the tuning loop by calling <code>tuner.begin()</code>. Pass in:</li>
+<li>Launch the tuning loop by calling <code>tuner.begin()</code>. Pass in a carousel which could be:</li>
 <ul>
-<li>None: when you do not plan to use the image Tuner holds for you
-<li>A single image: typically when you are just getting started with your code, and working one image at a time.
+<li>None: when you plan to open a specific file in target or when there is no image to process.
+<li>A single file name: typically when you are just getting started with your code, and working one image at a time.
 <li>A list of file names: typically, when you have a set of test images you want to put through target. Tuner will cycle through all the images until you exit. Esc cancels the stack, any other key will advance the carousel.
+<li>All other arguments including a single image will cause an error.</li>
 </ul>
 </ol>
 <p>
@@ -215,8 +216,8 @@ Besides the above, it's all pretty much the same. You do have access to a few ad
 <li>Template Matching output in one vs. Harris Corners output in the other;</li>
 <li>what your noble code found, vs. what the built in CV functions found (I find this view particularly revealing; also, character building).</li>
 </ul>
-<li>Access to features of Tuner like <code>tuner.review()</code> etc. Please see the dostrings for more information. A couple of the more interesting static methods are <code>tuner_from_json()</code> and <code>minimal_preprocessor()</code>. Some day, I'll get around to implementing <code>grid_search()</code> </li>
-<li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place... you could avoid that whole mess with explicit instantiation of Tuner.</li>
+<li>Access to features of Tuner like <code>tuner.review()</code> etc. Please see the dostrings for more information. A couple of the more interesting static methods are <code>tuner_from_json()</code> and <code>minimal_preprocessor()</code>. Some day, I'll get around to implementing <code>tuner.grid_search()</code> </li>
+<li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of Tuner.</li>
 </ul>
 
 The accompanying sample files illustrate some uses. Play around, and let me know if you think of ways to improve this.

@@ -5,16 +5,12 @@ import copy
 import os
 import json
 import tempfile
-
-HIGHLIGHT_COLOR = (173,255,47)
-HIGHLIGHT_THICKNESS_LIGHT = 1
-HIGHLIGHT_THICKNESS_HEAVY = 2
-PUT_TEXT_FONT = cv2.FONT_HERSHEY_PLAIN
-PUT_TEXT_SMALL = 0.7
-PUT_TEXT_NORMAL = 1.0
-wip_dir = "."
+import sys
+import functools
+import inspect
 
 class tb_prop:
+
     def __init__(self, get_val_method):
         self.get_val_method = get_val_method
     def __get__(self, instance, owner):
@@ -26,6 +22,16 @@ class tb_prop:
         return
 
 class Tuner:
+    # statics
+    HIGHLIGHT_COLOR = (173,255,47)
+    HIGHLIGHT_THICKNESS_LIGHT = 1
+    HIGHLIGHT_THICKNESS_HEAVY = 2
+    PUT_TEXT_FONT = cv2.FONT_HERSHEY_PLAIN
+    PUT_TEXT_SMALL = 0.7
+    PUT_TEXT_NORMAL = 1.0
+    PUT_TEXT_HEAVY = 2.0
+
+
     class __tb:
 
         def __init__(self, tuner, name, *, max, min, default, cb_on_update=None) -> None:
@@ -89,6 +95,16 @@ class Tuner:
             Override this if you have a special formatting to apply
             '''
             return self.get_value()
+
+        def ticks(self):
+            # generator over the range of values
+            for i in range(self.max):
+                # tick over and set value to new
+                # do this "headless" so that we
+                # are not refreshing unnecessarily
+                self._value = i
+                yield i
+            return
     class __tb_boolean(__tb):
         def __init__(self, tuner, name, *, default=False, cb_on_update=None) -> None:
             '''
@@ -189,33 +205,41 @@ class Tuner:
                 ret = self.data[key]
             return ret
 
-    def __init__(self, name, *
-                , cb_main = None
+    def __init__(self, *
+                , cb_main
                 , cb_downstream = None
+                , output_dir = "."
                 ):
         '''
-        Please see the readme.
-        cb_main: The target of tuning.
-        cb_downstream: Similar to cb_main, this is a downstream function to be called after cb_main.
-        This is not tuned, but it can display its results in a downstream window.
+        Please see the readme fo more detail.
+        name:           Required, Window name, default window title, and prefix for output files
+        cb_main:        Required. The main target of tuning.
+        cb_downstream:  Optional. Similar to cb_main, this is a downstream function to be called after cb_main.
+        This is not tuned, but it can display an image in a second (downstream) window.
+        output_dir      Optional. Where Tuner will dump temporary files, results etc.
         '''
+        self.wip_dir = "." if (output_dir is None or output_dir == "") else os.path.realpath(output_dir)
 
-        self.__window_name = name
         # provided later
+        self.__carousel_files = None
         self.__unprocessed_image = None
-
         self.__args = {}
         self.__params = {}
+
         # the safe default
         self.__calling_main = True
 
         # primary function to tune with its attendant image and other params
         self.__cb_main = cb_main
+        # base the main window name on the name of the function
+        self.__window_name = self.get_func_name(cb_main)
+
         # result of tuning
         self.__image_main = None
         self.__thumbnail_main = None
         self.__results_main = None
-        self.__image_file_name = None
+        self.__img_title = None
+
         # cv2.WINDOW_NORMAL|
         # we need this window regardless of there the user wants a picture in it
         cv2.namedWindow(self.window,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
@@ -223,6 +247,8 @@ class Tuner:
         # optional secondary function which is passed
         # the tuned parameters and the image from primary tuning
         self.__cb_downstream = cb_downstream
+        self.__downstream_window_name = self.get_func_name(cb_downstream)
+
         self.__image_downstream = None
         self.__results_downstream = None
         self.__thumbnail_downstream = None
@@ -292,15 +318,24 @@ class Tuner:
             self.__params[name] = tb
         return
 
-    def __refresh(self):
+    def get_func_name(self, cb):
+        ret = None
+        if not cb is None:
+            if type(cb) is functools.partial:
+                ret = cb.func.__qualname__
+            else:
+                ret = cb.__qualname__
+        return ret
+
+    def __refresh(self, headless=False):
 
         def show_main():
-            # call the user proc that does the calc/tuning
             self.__calling_main = True
+            # call the user proc that does the calc/tuning
             self.__cb_main(tuner=self)
-
+            # done calculating - show the results
             img = self.main_image
-            if not img is None:
+            if not (headless or img is None):
                 img = self.__insert_thumbnail(img, self.__thumbnail_main)
                 # show the main image here
                 cv2.imshow(self.window, img)
@@ -309,7 +344,9 @@ class Tuner:
                     cv2.displayOverlay(self.window, self.main_results,delayms=1_000)
                 except:
                     pass
-
+            else:
+                # the user wants to go headless - potentially a grid_search
+                pass
             return
         def show_downstream():
             if not self.__cb_downstream is None:
@@ -319,41 +356,43 @@ class Tuner:
                 # business of inserting ourself into the workflow of another codebase
                 # so we will not take results from one function and pass them to another
                 self.__cb_downstream(tuner = self)
-                try:
-                    cv2.displayOverlay(self.downstream_window,
-                                        self.downstream_result
-                                        ,delayms=10_000)
-                except:
-                    # ignore these
-                    pass
-
                 img = self.downstream_image
-                if not img is None:
+                if not (headless or img is None):
                     # show it in the secondary window
                     img = self.__insert_thumbnail(self.downstream_image, self.__thumbnail_downstream)
                     cv2.imshow(self.downstream_window, img)
+                    try:
+                        cv2.displayOverlay(self.downstream_window,
+                                            self.downstream_result
+                                            ,delayms=10_000)
+                    except:
+                        # ignore these
+                        pass
 
                 return
 
-        # # things not fully set up yet
-        # if self.__unprocessed_image is None: return
         show_main()
         show_downstream()
 
         return
-    def __show(self, img, img_title="",delay=0):
+    def __show(self, img, title,delay=0, headless=False):
         '''
-        delay is only set in review/creep mode; 0 means "until the user does something."
+        This is the original show - paths from the public show interface like begin() and review() come here.
+        img:        the image to work with
+        img_title:  window title, file name etc
+        delay:      only set in review/grid_search mode; 0 means  - *indefinite*
+        headless:   only set in review/grid_search mode - supress display
         '''
         cancel = False
         # this may be None and that is OK
         self.__unprocessed_image = img
-        self.__image_title = img_title
+        self.__image_title = title
         # the first step in the message pump
         self.__refresh()
 
-        while(1):
-            # wait forever until a key is pressed
+        while(not headless):
+            # Wait forever (when delay == 0) until a key is pressed.
+            # This is skipped when in headless mode.
             k = cv2.waitKey(delay) #& 0xFF
             if k == 120:
                 # F2 pressed = save image
@@ -372,87 +411,145 @@ class Tuner:
                 break
         return not cancel
 
-    def review(self, fnames:list, img_title=None,delay=2_000):
+    def grid_search(self, carousel, headless=False,delay=3_000):
         '''
-        Does a 2 second review of each image in the list unless interrupted.
+        Conducts a grid search across the trackbar configuration, and saves
+        aggregated results to file. When not in headless mode, you can
+        save images and results for individual files as they are displayed.
+        carousel:   Like review(), a list of image file names
+        headless:   When doing large searches, set this to True to suppress the display.
+        delay   :   When not in headless mode, acts like review()
+        '''
+        steps = list(self.__params.keys())
+        final_step = len(steps) - 1
+        img = None
+        title = None
+        result_fname = self.get_temp_file(suffix=".json")
+        result_json = {}
+
+        def tick_over(step_no):
+            # get this param to tick over one.
+            p = self.__params[steps[step_no]]
+            for t in p.ticks():
+                if step_no == final_step:
+                    # Just cause a refresh here,
+                    # the tb has set its own value
+                    # Doing a refresh invokes the target
+                    # which gathers the args
+                    self.__show(img, title, headless=headless)
+                    result_json[title] = self.results
+                else:
+                    tick_over(step_no=step_no+1)
+            return
+
+        self.__carousel = carousel
+        for img, title in self.__carousel:
+            # kick off the recursive descent
+            tick_over(0)
+
+        return
+
+    def review(self, carousel, delay=2_000):
+        '''
+        Usage: Identical to begin() except in that each image is shown for 'delay' ms unless interrupted.
         Sit back and enjoy the slideshow, saving image/result files
         as you go. Typically used in your regression test.
         1. create a tuner and set defaults to the best of your knowledge
         2. call this to flip through the images from your project
-        Leave img_title null to use the name of the file being shown.
+        carousel: one of
+                -- None (if you are reading images in the tuning target)
+                -- Single single fully qualified file name
+                -- A list of fully qualified file names, each of which will be processed
+        delay   : miliseconds to hold the display
         '''
-        if isinstance(fnames,list):
-            # we got a list of names
-            for fname in fnames:
-                img = cv2.imread(fname)
-                if img is None:
-                    raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
-                title = os.path.split(fname)[1] if img_title is None else img_title
-                ret  = self.__show(img,title,delay)
-                if not ret: break
-        else:
-            # we got a single image
-            img = fnames
-            title = img_title
+        self.__carousel = carousel
+        for img, title in self.__carousel:
             ret  = self.__show(img,title,delay)
+            if not ret: break
+
         return ret
 
-    def begin(self, fnames:list, img_title=None):
+    def begin(self, carousel):
         '''
         Display the Tuner window.
-        fnames: See readme. can be None, a single image, or a list of file names.
+        fnames: See readme. can be None, a single file name, or a list of file names.
                 When a list, each image is processed until interruped via the keyboard.
                 Hit Esc to cancel the whole stack.
-        img_title: When none, it will be inferred from the image file name.
         '''
 
-        return self.review(fnames=fnames,img_title=img_title,delay=0)
+        return self.review(carousel=carousel,delay=0)
 
-    def save_image(self, fname=None):
+    def save_image(self):
         '''
-        Saves the current image to fname, falling back to image_title, and temp file name.
+        Saves the current image to a temp file prefixed by {function_image_} in
+        the working directory set during initialization.
         '''
-        if fname is None: fname = self.__image_title
-        self.__save_image(fname)
-
-    def save_results(self, fname):
-        '''
-        Saves the set of results to fname, falling back to {image_title}.json, and temp file name.
-        The fille includes the last set of results set via the .results attribute, and the current
-        args (hyper-parameter values).
-        '''
-        if fname is None: fname = self.__image_title
-        self.__save_results(fname)
-
-    def __save_image(self,fname):
-        if fname is None or fname == "":
-            fname = Tuner.get_temp_file(suffix=".tuned.png")
-        else:
-            fname = Tuner.wip_dir + self._img_title + "tuned.png"
+        fname = self.get_temp_file(suffix=".main.png")
         cv2.imwrite(fname,self.__image_main)
         if not self.downstream_image is None:
-            fname = fname.replace(".tuned.", ".downstream.")
+            fname = fname.replace(".main.", ".downstream.")
             cv2.imwrite(fname,self.downstream_image)
         return
 
-    def __save_results(self,fname):
-        if fname is None or fname == "":
-            fname = Tuner.get_temp_file(suffix=".json")
-        else:
-            fname = Tuner.wip_dir + self._img_title + ".json"
-        Tuner.dump_json(self.results,fname=fname)
+    def save_results(self, result=None):
+        '''
+        Saves the current set of results to a file following name conventions.
+        Let result be None to grab the last set, or provide your own.
+        '''
+        ret = True
+        j = self.results if result is None else result
+        fname = self.get_temp_file(suffix=".json")
+        try:
+            with open(fname,"w") as f:
+                try:
+                    f.write(json.dumps(j))
+                except:
+                    # could not get a formatted output
+                    f.write(str(j))
+                f.write("\n")
+        except:
+            # dont let this screw anything else up
+            ret = False
 
+        return ret
+    @property
+    def __carousel(self):
+        # generator
+        title = None
+        img = None
+
+        for fname in self.__carousel_files:
+            img = cv2.imread(fname)
+            if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
+            title = os.path.split(fname)[1] if title is None else title
+            yield img, title
+
+        return
+
+    @__carousel.setter
+    def __carousel(self,val):
+        if isinstance(val,str): val = [val]
+
+        if isinstance(val,list):
+            # this is cool
+            pass
+        else:
+            # don't accept anything else
+            # we probably got a single image
+            raise ValueError("Carousel can only be set to a single file name, or a list of file names.")
+
+        self.__carousel_files = val
         return
 
     @property
     def __image_title(self):
-        return self.__image_file_name
+        return self.__img_title
 
     @__image_title.setter
     def __image_title(self,val):
 
         if not (val is None or val == ""):
-            self.__image_file_name = val
+            self.__img_title = val
             cv2.setWindowTitle(self.window,val)
             if not self.__cb_downstream is None:
                 cv2.setWindowTitle(self.downstream_window, "Downstream: " + val )
@@ -556,7 +653,7 @@ class Tuner:
         '''
         Downstream window title.
         '''
-        return self.window + " :Downstream"
+        return self.__downstream_window_name
     @property
     def thumbnail(self):
         '''
@@ -602,8 +699,28 @@ class Tuner:
                 mn[x:x1,y:y1] = tn if tn_dim == 2 else cv2.cvtColor(tn,cv2.COLOR_BGR2GRAY)
         return mn
 
+    def get_temp_file(self, suffix=".png"):
+        '''
+        Creates a temporary file with the specified suffix.
+        The temp file is prefixed with the name of the main target,
+        and image currently being processed
+        '''
+        prefix = self.window
+        it = self.__image_title
+        prefix = prefix + "_" + it if not (it is None or it == "") else prefix
+        prefix += "_"
+        _, full_path_name = tempfile.mkstemp(
+                                # makes it easy to find
+                                prefix=prefix
+                                ,suffix=suffix
+                                ,dir=Tuner.wip_dir
+                                ,text=True
+                                )
+        # we're just going to leave this file lying around
+        return full_path_name
+
     @staticmethod
-    def tuner_from_json(name, cb_main:function, cb_downstream:function, json_def:dict):
+    def tuner_from_json(name, cb_main, cb_downstream, json_def:dict):
         '''
         Returns an instance of Tuner configured to the json you pass in.
         '''
@@ -740,68 +857,23 @@ class Tuner:
             pass
         return hist,bins,mid
 
-
     @staticmethod
-    def get_temp_file(dir=wip_dir, suffix=".png"):
-        # we're just going to leave this file lying around
-        _, full_path_name = tempfile.mkstemp(suffix=suffix,dir=dir,text=True)
+    def image_to_array_indices(img_pt_from, *
+                                , img_pt_to = None
+                                , img_shape = None):
 
-        return full_path_name
+        # since array x and y are flipped in the image
+        y, x = img_pt_from
 
-    @staticmethod
-    def get_file_path(dir, fname, ext=""):
-        duh = os.path.split(fname)
-        if duh[0] == "":
-            # no path provided in fname
-            if dir is None or dir == "":
-                dir = "./"
-            fname = dir + fname
+        if not img_pt_to is None:
+            # go point to point
+            y1, x1 = img_pt_to
+        elif not img_shape is None:
+            # this is the shape of the subset image
+            y1, x1 = img_shape[0], img_shape[1]
+            y1 += y
+            x1 += x
+        return x, x1, y, y1
 
 
-        duh = os.path.splitext(fname)
-        if duh[1] == "":
-            # no ext provided
-            fname += ext
-        else:
-            # fname has an extension
-            if not ext is None and ext != "":
-                # need to overwrite the extension
-                fname = duh[0] + ext
-        return fname
 
-    @staticmethod
-    def dump_json(j , dir = wip_dir, fname="dump_json.json", mode = 'a+'):
-
-        fname = Tuner.get_file_path(dir,fname,".json")
-        try:
-            with open(fname,mode) as f:
-                try:
-                    f.write(json.dumps(j))
-                except:
-                    # could not get a formatted output
-                    f.write(str(j))
-                f.write("\n")
-        except:
-            # dont let this screw anything else up
-            pass
-        return
-
-    @staticmethod
-    def dump_to_file(vals:np.array, *, dir = wip_dir, fname="", mode = 'w'):
-        if fname == "":
-            fname = Tuner.get_temp_file(suffix=".csv")
-        else:
-            fname = Tuner.get_file_path(dir,fname, ".csv")
-
-        with open(fname, mode) as f:
-            for i in range(vals.shape[0]):
-                # f.write(f"a[{i}] = [" )
-                srow = ""
-                if vals.ndim > 1:
-                    for j in range(vals.shape[1]):
-                        if srow != "":
-                            srow += ","
-                        srow += str(vals[i,j])
-                else:
-                    srow = vals[i]
-                f.writelines(f"{srow}\n")
