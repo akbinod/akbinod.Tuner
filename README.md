@@ -3,11 +3,11 @@
 Binod Purushothaman : binod@gatech.edu
 <br>Georgia Tech CS-6476: Spring 2021
 <H3>Why bother?</H3>
-Because 6 ines of code will get you a pretty decent hyper-parameter Tuner.
+Because 6 ines of code will get you a pretty decent hyper-parameter Tuner. 6 lines of your code and this component.
 <br></br>
 If you're studying Computer Vision, hyper-parameter tuning is probably causing you some angst. I wrote this while in the middle of PS-3 and 4 ("yay OMS"). I've included some sample code that shows you how to use Tuner, and a barebones example that illustrates using Tuner to adjust your pre-processing. Please do look at the section on required pip installs towards the end of this document.
 
-<H3>How does it work?</H3>
+### How does it work?
 Tuner hooks into your code. Here is a quick example.
 
 ```{python}
@@ -40,11 +40,11 @@ def find_circles(image, radius, tuner=None)
     return results
 
 ```
-<p>
+
 The changes you need to make:
-</p>
+
 <ol>
-<li>Modify the tuning <b>target</b> (<code>find_circles()</code> in the example above) to accept a new parameter <code>tuner=None</code></li>
+<li>Modify the tuning <b>target</b> (<code>find_circles()</code> in the example above) to accept a new parameter: <code>tuner=None</code></li>
 <li>set <code>tuner.image</code> and <code>tuner.results</code> to show them in the Tuner GUI.
 </ol>
 <p>
@@ -67,7 +67,7 @@ Implict Tuner instantiation. Although you do give up some flexibility, and a few
 <H3>Usage</H3>
 
 <ul>
-<li>Decorate the function you want to tune (referred to as <b>target</b> or tuned function) with <code>@TunedFunction()</code> . See the quick example above.</li>
+<li>Decorate the function you want to tune (referred to as <b>target</b> or tuned function) with <code>@TunedFunction()</code> . There should be no other decorators on the function, otherwise <code>@TunedFunction()</code> will fail. See the quick example above.</li>
 <li>Begin your tuning session by calling your function. This is the <b>launch call</b>.</li>
 
 - TunedFunction takes over and creates a Tuner GUI.
@@ -177,12 +177,12 @@ The basic pattern is about the same:
 Which is basically what you can do with <code>@TunedFunction</code> already, and with much less code to boot. The difference lies in a few workflow features (which admittedly have been developed for an audience of one - me!)
 
 A significant change is that Tuner will not be currying parameters during these tuning calls, and you need to access all tuned parameters off <code>tuner</code>. You can either look in the <code>tuner.args</code> dict, or just directly reference the tuner attribute, e.g,, <code>tuner.radius</code> to continue with the first example. Incidentally, these attributes are readonly from code; they can only be changed by the trackbars.
+You cannot mix Tuner with partials and decorators - just the func please. If you do, things will blow up unpredictably.
 
 One of the following must apply to target (main and downstream):
 <ol>
 <li>Target's signature only accepts Tuner (no bueno, from the auto grader perspective).</li>
 <li>Target's signature has defaults for all parameters (easiest, and plays well with the auto grader).</li>
-<li>Target is a functools.partial with all arguments besides <code>tuner</code> curried in (most flexible, but also <b>work</b>).</li>
 </ol>
 
 The workflow basically looks like this:

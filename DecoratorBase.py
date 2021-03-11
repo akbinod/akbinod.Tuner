@@ -164,8 +164,17 @@ class DecoratorBase():
 
 	@property
 	def func_name(self):
-		ret = ""
-		if self.target is not None:
-			ret = str(self.target)
+		ret = None
+		if not self.__target is None:
+			if type(self.__target) is functools.partial:
+				ret = self.__target.func.__qualname__
+			else:
+				ret = self.__target.__qualname__
+		return ret
+	@property
+	def func_name_with_id(self):
+		ret = None
+		if not self.__target is None:
+			ret = repr(self.__target)
 		return ret
 

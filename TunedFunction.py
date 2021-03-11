@@ -58,6 +58,7 @@ class TunedFunction(DecoratorBase):
 
 	def setup_tuner(self, tf_args,tf_kwargs):
 
+		if len(tf_args) == 0 : return
 		# this gets just the positional parameters
 		params = self.argspec.args
 		# Create a partial of Intercept with the 'self' frozen.
@@ -65,16 +66,20 @@ class TunedFunction(DecoratorBase):
 		# Note, doing a partial on a method also curries
 		# the self along with it.
 		cb = functools.partial(self.intercept)
-		self.tuner = Tuner(self.func_name,cb_main=cb)
+		self.tuner = Tuner(cb_main=cb,def_window_title=self.func_name)
 
 		# See if there's anything we can tune
 		# If our target is a bound method, we
 		# want to ignore that 'self' - it's
-		# going to get bound anyway
-		start = 1 if self.ismethod else 0
+		# going to get bound anyway. When the
+		# self is passed in, there's a diff between
+		# the params we've identified, and the args
+		# passed in.
+		start = len(tf_args) - len(params)
+		# start = 1 if self.ismethod else 0
 		for i in range(start,len(tf_args)):
 			# formal positional parameter name
-			name = params[i]
+			name = params[i-start]
 			# arg passed in to the call that kicks off tuning
 			arg = tf_args[i]
 
@@ -119,36 +124,36 @@ class TunedFunction(DecoratorBase):
 
 	def before(self, *args, **kwargs):
 		"""Event handler."""
+		if self.tuner is None:
+			# Each call at this level is a new call to tune.
+			# Tuner calls Intercept - not this function.
+			# Create the tuner and shunt the curried args into
+			# kwargs
+			self.setup_tuner(args, kwargs)
+			# The tuner has set up 'args' with default values at this point
+			# Check whether we have any args to track
+			# binod - reevauate - for now, just let the call through
+			if len(self.tuner.args) == 0 : return True
 
-		# Each call at this level is a new call to tune.
-		# Tuner calls Intercept - not this function.
-		# Create the tuner and shunt the curried args into
-		# kwargs
-		self.setup_tuner(args, kwargs)
-		# The tuner has set up 'args' with default values at this point
-		# Check whether we have any args to track
-		# binod - reevauate - for now, just let the call through
-		if len(self.tuner.args) == 0 : return True
 
+			# Call the begin() method to start up the tuner gui
+			# We do not need to explicitly send in an image, since
+			# it will be one of the parameters that we are just
+			# currying in - along with all the others that
+			# Tuner cannot handle. This is what the loop looks like:
+			# 1. we call tuner.begin()
+			# 2. tuner calls this.intercept()
+			# 3. tuner.intercept() calls the target function
+			# 4. target returns, intercept returns, and then we go back to 2
+			# Steps 2 to 4 loop until the user breaks out.
 
+			self.tuner.begin(None)
+			# The user exited the tuning session, so we have handled this call to target.
+			# We do not want this particular invocation passed on to target.
+			# it has been invoked in a special manner just to start the tuning process.
+			return False
 
-		# Call the begin() method to start up the tuner gui
-		# We do not need to explicitly send in an image, since
-		# it will be one of the parameters that we are just
-		# currying in - along with all the others that
-		# Tuner cannot handle. This is what the loop looks like:
-		# 1. we call tuner.begin()
-		# 2. tuner calls this.intercept()
-		# 3. tuner.intercept() calls the target function
-		# 4. target returns, intercept returns, and then we go back to 2
-		# Steps 2 to 4 loop until the user breaks out.
-
-		self.tuner.begin(None)
-
-		# The user exited the tuning session, so we have handled this call to target.
-		# We do not want this particular invocation passed on to target.
-		# it has been invoked in a special manner just to start the tuning process.
-		return False
+		return True
 
 	def after(self, *args, **kwargs):
 		# nothing going on here...

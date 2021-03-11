@@ -9,6 +9,11 @@ import sys
 import functools
 import inspect
 
+# Change these if you have specific
+# samples you like to work with
+img_sample_color = "./tuner_sample_color.png"
+img_sample_bw = "./tuner_sample_bw.jpg"
+
 class tb_prop:
 
     def __init__(self, get_val_method):
@@ -69,13 +74,7 @@ class Tuner:
             # the next line will kick off a refresh of the image
             if not self.on_update is None: self.on_update(self.name,self.get_value())
             # show the new parameter for 10 seconds
-            try:
-                cv2.displayStatusBar(self.tuner.window,
-                                    self.name + ":" + str(self.get_display_value())
-                                    ,10_000
-                                )
-            except:
-                pass
+            self.tuner.status = self.name + ":" + str(self.get_display_value())
             return
 
         def get_value(self):
@@ -209,6 +208,7 @@ class Tuner:
                 , cb_main
                 , cb_downstream = None
                 , output_dir = "."
+                , def_window_title = ""
                 ):
         '''
         Please see the readme fo more detail.
@@ -225,19 +225,23 @@ class Tuner:
         self.__unprocessed_image = None
         self.__args = {}
         self.__params = {}
+        self.__invocation_errors = {}
+        self.__results = {}
 
         # the safe default
         self.__calling_main = True
 
         # primary function to tune with its attendant image and other params
         self.__cb_main = cb_main
-        # base the main window name on the name of the function
-        self.__window_name = self.get_func_name(cb_main)
+        if def_window_title is None or def_window_title == "":
+            # base the main window name on the name of the function
+            self.__window_name = self.get_func_name(cb_main)
+        else:
+            self.__window_name = def_window_title
 
         # result of tuning
         self.__image_main = None
         self.__thumbnail_main = None
-        self.__results_main = None
         self.__img_title = None
 
         # cv2.WINDOW_NORMAL|
@@ -250,7 +254,6 @@ class Tuner:
         self.__downstream_window_name = self.get_func_name(cb_downstream)
 
         self.__image_downstream = None
-        self.__results_downstream = None
         self.__thumbnail_downstream = None
         if not cb_downstream is None:
             # we have 2 pictures to show
@@ -319,63 +322,85 @@ class Tuner:
         return
 
     def get_func_name(self, cb):
+        # import TunedFunction
         ret = None
         if not cb is None:
             if type(cb) is functools.partial:
                 ret = cb.func.__qualname__
+                # if type(cb) is TunedFunction:
+                #     ret = cb.func_name
+                # else:
+                #     ret = cb.func.__qualname__
             else:
                 ret = cb.__qualname__
         return ret
+    @property
+    def status():
+
+        return
+    @status.setter
+    def status(self, val):
+        try:
+            cv2.displayStatusBar(self.tuner.window,val,10_000)
+        except:
+            pass
+
+    @property
+    def overlay():
+
+        return
+    @status.setter
+    def overlay(self, val):
+        try:
+            cv2.displayOverlay(self.window, val,delayms=1_000)
+        except:
+            # user does not have the Qt backend installed. Pity.
+            pass
 
     def __refresh(self, headless=False):
+        def safe_invoke(cb, name):
+            try:
+                if not cb is None:
+                    # todo - check if the expected args all have safe defaults
+                    # otherwise it will blow up quite easily (expected 4, got 1)
+                    cb(tuner=self)
+            except Exception as error:
+                # do not let downstream errors kill us
+                # eventually we'll have an appropriate gui
+                # for this
+                self.status = f"An error occurred executing {name}. Check results."
+                self.errors = repr(error)
+                print(error)
 
         def show_main():
             self.__calling_main = True
             # call the user proc that does the calc/tuning
-            self.__cb_main(tuner=self)
+            safe_invoke(self.__cb_main, self.__window_name)
             # done calculating - show the results
             img = self.main_image
+            # grid_searcehs are usually headless
             if not (headless or img is None):
                 img = self.__insert_thumbnail(img, self.__thumbnail_main)
                 # show the main image here
                 cv2.imshow(self.window, img)
-                try:
-                    # user does not have the Qt backend installed. Pity.
-                    cv2.displayOverlay(self.window, self.main_results,delayms=1_000)
-                except:
-                    pass
-            else:
-                # the user wants to go headless - potentially a grid_search
-                pass
             return
         def show_downstream():
-            if not self.__cb_downstream is None:
-                #  call the user proc that does the secondary processing/application
-                self.__calling_main = False
-                # Always send in a copy of the "pristine" image/ We're not in the
-                # business of inserting ourself into the workflow of another codebase
-                # so we will not take results from one function and pass them to another
-                self.__cb_downstream(tuner = self)
-                img = self.downstream_image
-                if not (headless or img is None):
-                    # show it in the secondary window
-                    img = self.__insert_thumbnail(self.downstream_image, self.__thumbnail_downstream)
-                    cv2.imshow(self.downstream_window, img)
-                    try:
-                        cv2.displayOverlay(self.downstream_window,
-                                            self.downstream_result
-                                            ,delayms=10_000)
-                    except:
-                        # ignore these
-                        pass
-
-                return
+            #  call the user proc that does the secondary processing/application
+            self.__calling_main = False
+            safe_invoke(self.__cb_downstream, self.downstream_window)
+            img = self.downstream_image
+            if not (headless or img is None):
+                # show it in the secondary window
+                img = self.__insert_thumbnail(self.downstream_image, self.__thumbnail_downstream)
+                cv2.imshow(self.downstream_window, img)
+            return
 
         show_main()
         show_downstream()
+        self.overlay = self.results
 
         return
-    def __show(self, img, title,delay=0, headless=False):
+    def __show(self, img, title,delay=0, headless=False, img_index = None, total_images=None):
         '''
         This is the original show - paths from the public show interface like begin() and review() come here.
         img:        the image to work with
@@ -386,22 +411,25 @@ class Tuner:
         cancel = False
         # this may be None and that is OK
         self.__unprocessed_image = img
-        self.__image_title = title
+        self.__image_title = (title,img_index,total_images)
+        self.__invocation_errors = {}
+        self.__results = {}
+
         # the first step in the message pump
-        self.__refresh()
+        self.__refresh(headless=headless)
 
         while(not headless):
-            # Wait forever (when delay == 0) until a key is pressed.
+            # Wait forever (when delay == 0) for a keypress
             # This is skipped when in headless mode.
             k = cv2.waitKey(delay) #& 0xFF
             if k == 120:
                 # F2 pressed = save image
-                self.__save_image(self.__image_title)
+                self.save_image()
                 # don't exit just yet - clock starts over
                 continue
             elif k == 99:
                 # F3 - dump params
-                self.__save_results(self.__image_title)
+                self.save_results()
                 # don't exit just yet - clock starts over
                 continue
             else:
@@ -411,7 +439,7 @@ class Tuner:
                 break
         return not cancel
 
-    def grid_search(self, carousel, headless=False,delay=3_000):
+    def grid_search(self, carousel, headless=False,delay=3_000, esc_cancels_carousel = False):
         '''
         Conducts a grid search across the trackbar configuration, and saves
         aggregated results to file. When not in headless mode, you can
@@ -419,34 +447,52 @@ class Tuner:
         carousel:   Like review(), a list of image file names
         headless:   When doing large searches, set this to True to suppress the display.
         delay   :   When not in headless mode, acts like review()
+        esc_cancels_carousel: When you submit a carousel, does the 'Esc' key get you:
+                            -- out of tuning the current image only (False), or
+                            -- out of the entire carousel as well (True)
         '''
         steps = list(self.__params.keys())
         final_step = len(steps) - 1
-        img = None
-        title = None
-        result_fname = self.get_temp_file(suffix=".json")
-        result_json = {}
+        img = title = index = total = None
+        gs_result = {}
+        curr_res_list = None
+        # Once this get set to false, the recursive descent unwinds
+        # Whether we go on to the next file in the carousel depends
+        # on the
+        user_cancelled = False
 
-        def tick_over(step_no):
-            # get this param to tick over one.
+        def creep_trackbar(step_no):
+            nonlocal user_cancelled
+            # which trackbar/param are we talking about?
             p = self.__params[steps[step_no]]
+
             for t in p.ticks():
-                if step_no == final_step:
-                    # Just cause a refresh here,
-                    # the tb has set its own value
-                    # Doing a refresh invokes the target
-                    # which gathers the args
-                    self.__show(img, title, headless=headless)
-                    result_json[title] = self.results
+                # get this param to tick over one.
+                if user_cancelled:
+                    # unwind this recursive descent
+                    return
+                elif step_no == final_step:
+                    # If this is the last param in the set
+                    # Call user code with a fresh set of params
+                    # Doing this invokes the target, which gathers the args
+                    user_cancelled = not self.__show(img, title, headless=headless, delay=delay,img_index=index,total_images=total)
+                    # stash results
+                    curr_res_list.append(self.results)
                 else:
-                    tick_over(step_no=step_no+1)
+                    # For all non final params - there's just
+                    # the ticking over,  no showing.
+                    creep_trackbar(step_no=step_no+1)
             return
 
         self.__carousel = carousel
-        for img, title in self.__carousel:
+        for img, title, index, total in self.__carousel:
             # kick off the recursive descent
-            tick_over(0)
+            curr_res_list = gs_result[title] = []
+            creep_trackbar(0)
+            if user_cancelled and esc_cancels_carousel: break
 
+        # save consolidated results
+        self.save_results(result=gs_result)
         return
 
     def review(self, carousel, delay=2_000):
@@ -463,6 +509,9 @@ class Tuner:
         delay   : miliseconds to hold the display
         '''
         self.__carousel = carousel
+        img = title = None
+        ret = True
+
         for img, title in self.__carousel:
             ret  = self.__show(img,title,delay)
             if not ret: break
@@ -509,6 +558,7 @@ class Tuner:
                 f.write("\n")
         except:
             # dont let this screw anything else up
+            self.status = "Failed to write results."
             ret = False
 
         return ret
@@ -517,20 +567,26 @@ class Tuner:
         # generator
         title = None
         img = None
-
-        for fname in self.__carousel_files:
-            img = cv2.imread(fname)
-            if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
-            title = os.path.split(fname)[1] if title is None else title
-            yield img, title
+        total = len(self.__carousel_files)
+        if self.__carousel_files is None:
+            # we want one iteration when there's nothing
+            # - so yield this once
+            yield img, title, 0, 0
+        else:
+            for index, fname in enumerate(self.__carousel_files):
+                img = cv2.imread(fname)
+                if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
+                title = os.path.split(fname)[1]
+                yield img, title, (index+1), total
 
         return
 
     @__carousel.setter
     def __carousel(self,val):
+
         if isinstance(val,str): val = [val]
 
-        if isinstance(val,list):
+        if val is None or isinstance(val,list):
             # this is cool
             pass
         else:
@@ -547,12 +603,20 @@ class Tuner:
 
     @__image_title.setter
     def __image_title(self,val):
-
+        title = index = total = None
         if not (val is None or val == ""):
-            self.__img_title = val
-            cv2.setWindowTitle(self.window,val)
+            if type(val) is str:
+                title = val
+            elif type(val) is tuple:
+                title = val[0]
+                if len(val) >= 2: index = val[1]
+                if len(val) >= 3: total = val[2]
+            # this will be in filenames and such - so don't add the x of y
+            self.__img_title = title
+            if not (index is None or total is None): title += f" [{index} of {total}]"
+            cv2.setWindowTitle(self.window,title)
             if not self.__cb_downstream is None:
-                cv2.setWindowTitle(self.downstream_window, "Downstream: " + val )
+                cv2.setWindowTitle(self.downstream_window, "Downstream: " + title )
         return
 
     def __update_arg(self, key, val):
@@ -581,14 +645,6 @@ class Tuner:
         '''
         return self.__image_main
 
-    @property
-    def main_results(self):
-        '''
-        Results as set by the main function - the target of tuning.
-        '''
-        if self.__results_main is None:
-            self.__results_main = {}
-        return self.__results_main
 
     @property
     def downstream_image(self):
@@ -599,32 +655,42 @@ class Tuner:
         return self.__image_downstream
 
     @property
-    def downstream_results(self):
-        '''
-        The results as set by the downstream function.
-        '''
-        return self.__results_downstream
-
-    @property
     def results(self):
         '''
         Returns json which includes the image title, the current state of tuned args, the results set by main, and the results set by downstream.
         '''
         # return the combined results, and add args in there for good measure
-        j = {}
+        j = copy.deepcopy(self.__results)
         j["image_title"] = self.__img_title
         j["args"] = self.args
-        j["main"] = self.main_results
-        j["downstream"] = self.downstream_results
+        j["errors"] = copy.deepcopy(self.errors)
         return j
 
     @results.setter
     def results(self, val):
+
         if self.__calling_main:
-            self.__results_main = val
+            self.__results["main"] = val
         else:
             # the object setting this is the downstream func
-            self.__results_downstream = val
+            self.__results["downstream"] = val
+
+    @property
+    def errors(self):
+        '''
+        Returns json containing errors in execution.
+        '''
+        return self.__invocation_errors
+
+    @errors.setter
+    def errors(self, val):
+
+        if self.__calling_main:
+            self.__invocation_errors["main"] = val
+        else:
+            # the object setting this is the downstream func
+            self.__invocation_errors["downstream"] = val
+
 
     @property
     def image(self):
@@ -707,17 +773,25 @@ class Tuner:
         '''
         prefix = self.window
         it = self.__image_title
-        prefix = prefix + "_" + it if not (it is None or it == "") else prefix
-        prefix += "_"
+        prefix = prefix + "." + it if not (it is None or it == "") else prefix
+        prefix += "."
         _, full_path_name = tempfile.mkstemp(
                                 # makes it easy to find
                                 prefix=prefix
                                 ,suffix=suffix
-                                ,dir=Tuner.wip_dir
+                                ,dir=self.wip_dir
                                 ,text=True
                                 )
         # we're just going to leave this file lying around
         return full_path_name
+
+    @staticmethod
+    def get_sample_image_color():
+        return cv2.imread(img_sample_color)
+
+    @staticmethod
+    def get_sample_image_bw():
+        return cv2.imread(img_sample_bw)
 
     @staticmethod
     def tuner_from_json(name, cb_main, cb_downstream, json_def:dict):
@@ -874,6 +948,5 @@ class Tuner:
             y1 += y
             x1 += x
         return x, x1, y, y1
-
 
 
