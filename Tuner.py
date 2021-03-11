@@ -8,6 +8,18 @@ import tempfile
 import sys
 import functools
 import inspect
+import itertools as it
+import time
+
+from enum import Enum, auto, Flag
+
+class Mark(Enum):
+    '''
+    These are keycodes (on macOS at any rate)
+    '''
+    interesting = 109 # F10
+    debug = 101 # F9
+
 
 # Change these if you have specific
 # samples you like to work with
@@ -36,7 +48,6 @@ class Tuner:
     PUT_TEXT_NORMAL = 1.0
     PUT_TEXT_HEAVY = 2.0
 
-
     class __tb:
 
         def __init__(self, tuner, name, *, max, min, default, cb_on_update=None) -> None:
@@ -61,8 +72,13 @@ class Tuner:
         def spec(self):
             # these must be ints, not floats
             return int(self.max), int(self.default)
+        def range(self):
+            # if the user wants to see a certain min, why default to 0
+            # range will not return the 'max' value
+            ret = range(self.min, self.max + 1)
+            return ret
 
-        def set_value(self,val):
+        def set_value(self,val, headless_op=False):
             '''
             This callback for OpenCV cannot be modified. It's not particularly
             necessary to override this either. You must override get_value
@@ -70,11 +86,12 @@ class Tuner:
             # Just put away whatever value you get.
             # We'll interpret (e.g. nulls) when get_value is accessed.
             self._value = val
-            # python will delegate to the most derived class
-            # the next line will kick off a refresh of the image
-            if not self.on_update is None: self.on_update(self.name,self.get_value())
-            # show the new parameter for 10 seconds
-            self.tuner.status = self.name + ":" + str(self.get_display_value())
+            if not headless_op:
+                # python will delegate to the most derived class
+                # the next line will kick off a refresh of the image
+                if not self.on_update is None: self.on_update(self.name,self.get_value())
+                # show the new parameter for 10 seconds
+                self.tuner.status = self.name + ":" + str(self.get_display_value())
             return
 
         def get_value(self):
@@ -363,7 +380,8 @@ class Tuner:
                 if not cb is None:
                     # todo - check if the expected args all have safe defaults
                     # otherwise it will blow up quite easily (expected 4, got 1)
-                    cb(tuner=self)
+                    res = cb(tuner=self)
+                    self.__set_result(res,overwrite=False)
             except Exception as error:
                 # do not let downstream errors kill us
                 # eventually we'll have an appropriate gui
@@ -432,12 +450,30 @@ class Tuner:
                 self.save_results()
                 # don't exit just yet - clock starts over
                 continue
+            elif k in [101, 109]:
+                self.mark_result(k)
+                continue
             else:
                 # any other key - done with this image
                 # cancel the stack if the Esc key was pressed
                 cancel = (k==27)
                 break
         return not cancel
+    def mark_result(self, obs:Mark):
+        key = Mark(obs).name
+        if not self.__results is None:
+            if not "tags" in self.__results: self.__results["tags"] = {}
+            self.__results["tags"][key] = True
+        return
+    def get_ranges(self):
+        '''
+        Returns a list containing the range of each of the trackbars in this tuner.
+        And another of the keys with which this list was butilt.
+        '''
+        # Eventually will get to filtering the set of params we actually take
+        keys = list(self.__params.keys())
+        ranges = [r for r in [self.__params[key].range() for key in keys]]
+        return ranges, keys
 
     def grid_search(self, carousel, headless=False,delay=3_000, esc_cancels_carousel = False):
         '''
@@ -451,45 +487,61 @@ class Tuner:
                             -- out of tuning the current image only (False), or
                             -- out of the entire carousel as well (True)
         '''
-        steps = list(self.__params.keys())
-        final_step = len(steps) - 1
-        img = title = index = total = None
         gs_result = {}
-        curr_res_list = None
-        # Once this get set to false, the recursive descent unwinds
-        # Whether we go on to the next file in the carousel depends
-        # on the
-        user_cancelled = False
+        gs_result["headless"] = headless
+        iterations = gs_result["iterations"] = 0
+        outp = gs_result["duration"] = ""
+        t1 = time.time()
+        proc_time1 = time.process_time()
 
-        def creep_trackbar(step_no):
-            nonlocal user_cancelled
-            # which trackbar/param are we talking about?
-            p = self.__params[steps[step_no]]
+        # the ranges that our trackbars have
+        ranges, keys = self.get_ranges()
+        range_keys = range(len(keys))
 
-            for t in p.ticks():
-                # get this param to tick over one.
-                if user_cancelled:
-                    # unwind this recursive descent
-                    return
-                elif step_no == final_step:
-                    # If this is the last param in the set
-                    # Call user code with a fresh set of params
-                    # Doing this invokes the target, which gathers the args
-                    user_cancelled = not self.__show(img, title, headless=headless, delay=delay,img_index=index,total_images=total)
-                    # stash results
-                    curr_res_list.append(self.results)
-                else:
-                    # For all non final params - there's just
-                    # the ticking over,  no showing.
-                    creep_trackbar(step_no=step_no+1)
-            return
-
+        # ready to iterate
         self.__carousel = carousel
         for img, title, index, total in self.__carousel:
-            # kick off the recursive descent
+            user_cancelled = False
             curr_res_list = gs_result[title] = []
-            creep_trackbar(0)
+            # cartesian product - needs to be
+            # rebuilt for each file, as an iteration
+            # will exhaust it.
+            prod = it.product(*ranges)
+            # Bang on this image.
+            # Prod iterates over the complete set of values that this
+            # constellation of trackbars could have.
+            for t in prod:
+                # Update the trackbar values.
+                # Each tuple t is a complete combination and
+                # will have the same length as the range of keys
+                for i in range_keys:
+                    # skip the UI refresh on every property set
+                    self.__params[keys[i]].set_value(t[i],headless_op=True)
+
+                # Now that the args have been set, invoke the
+                # target which gathers the args we just set
+                iterations += 1
+                user_cancelled = not self.__show(img, title
+                                                    ,headless=headless
+                                                    ,delay=delay
+                                                    ,img_index=index,total_images=total)
+                # stash results
+                curr_res_list.append(self.results)
+                if user_cancelled : break
+            # done iterating values for that image
             if user_cancelled and esc_cancels_carousel: break
+
+        # done iterating images
+        proc_time2 = time.process_time()
+        t2 = time.gmtime(time.time() - t1)
+
+        outp = f"{time.strftime('%H:%M:%S', t2 )}"
+        if t2.tm_sec <= 1 or (proc_time2 - proc_time1) < 1:
+            outp += f"\t[process_time: {round(proc_time2 - proc_time1,5)}]"
+
+        # record how many and how long this took
+        gs_result["iterations"] = iterations
+        gs_result["duration"] = outp
 
         # save consolidated results
         self.save_results(result=gs_result)
@@ -512,8 +564,8 @@ class Tuner:
         img = title = None
         ret = True
 
-        for img, title in self.__carousel:
-            ret  = self.__show(img,title,delay)
+        for img, title, index, total in self.__carousel:
+            ret  = self.__show(img,title,delay,img_index=index, total_images=total)
             if not ret: break
 
         return ret
@@ -567,12 +619,13 @@ class Tuner:
         # generator
         title = None
         img = None
-        total = len(self.__carousel_files)
+        index = total = 0
         if self.__carousel_files is None:
             # we want one iteration when there's nothing
             # - so yield this once
             yield img, title, 0, 0
         else:
+            total = len(self.__carousel_files)
             for index, fname in enumerate(self.__carousel_files):
                 img = cv2.imread(fname)
                 if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
@@ -604,19 +657,22 @@ class Tuner:
     @__image_title.setter
     def __image_title(self,val):
         title = index = total = None
-        if not (val is None or val == ""):
-            if type(val) is str:
-                title = val
-            elif type(val) is tuple:
-                title = val[0]
-                if len(val) >= 2: index = val[1]
-                if len(val) >= 3: total = val[2]
-            # this will be in filenames and such - so don't add the x of y
-            self.__img_title = title
-            if not (index is None or total is None): title += f" [{index} of {total}]"
-            cv2.setWindowTitle(self.window,title)
-            if not self.__cb_downstream is None:
-                cv2.setWindowTitle(self.downstream_window, "Downstream: " + title )
+        if val is None:
+            # go with func name
+            val = (self.__window_name,None,None)
+        elif type(val) is str:
+            val = (val, None, None)
+
+        title = self.__window_name if val[0] is None else val[0]
+        if len(val) >= 2: index = val[1]
+        if len(val) >= 3: total = val[2]
+        # this will be in filenames and such - so don't add the x of y
+        self.__img_title = title
+        if not (index is None or total is None): title += f" [{index} of {total}]"
+        cv2.setWindowTitle(self.window,title)
+        if not self.__cb_downstream is None:
+            cv2.setWindowTitle(self.downstream_window, "Downstream: " + title )
+
         return
 
     def __update_arg(self, key, val):
@@ -661,19 +717,32 @@ class Tuner:
         '''
         # return the combined results, and add args in there for good measure
         j = copy.deepcopy(self.__results)
-        j["image_title"] = self.__img_title
-        j["args"] = self.args
+        # j["image_title"] = self.__img_title
         j["errors"] = copy.deepcopy(self.errors)
         return j
 
     @results.setter
     def results(self, val):
+        self.__set_result(val)
+
+    def __set_result(self, res, overwrite=True):
 
         if self.__calling_main:
-            self.__results["main"] = val
+            if overwrite or (not "main" in self.__results):
+                # let's track the args associate with these results as well
+                self.__results["args"] = self.args
+                self.__results["main"] = res
+                self.__results["tags"] = {}
         else:
             # the object setting this is the downstream func
-            self.__results["downstream"] = val
+            if overwrite or (not "downstream" in self.__results):
+                self.__results["downstream"] = res
+
+
+        if not self.results is None and self.results == {}:
+            # The function returns but the user has
+            # not set results - do the honors
+            self.results = results
 
     @property
     def errors(self):
@@ -950,3 +1019,58 @@ class Tuner:
         return x, x1, y, y1
 
 
+# def grid_search_old(self, carousel, headless=False,delay=3_000, esc_cancels_carousel = False):
+    #     '''
+    #     Conducts a grid search across the trackbar configuration, and saves
+    #     aggregated results to file. When not in headless mode, you can
+    #     save images and results for individual files as they are displayed.
+    #     carousel:   Like review(), a list of image file names
+    #     headless:   When doing large searches, set this to True to suppress the display.
+    #     delay   :   When not in headless mode, acts like review()
+    #     esc_cancels_carousel: When you submit a carousel, does the 'Esc' key get you:
+    #                         -- out of tuning the current image only (False), or
+    #                         -- out of the entire carousel as well (True)
+    #     '''
+    #     steps = list(self.__params.keys())
+    #     final_step = len(steps) - 1
+    #     img = title = index = total = None
+    #     gs_result = {}
+    #     curr_res_list = None
+    #     # Once this get set to false, the recursive descent unwinds
+    #     # Whether we go on to the next file in the carousel depends
+    #     # on the
+    #     user_cancelled = False
+
+    #     def creep_trackbar(step_no):
+    #         nonlocal user_cancelled
+    #         # which trackbar/param are we talking about?
+    #         p = self.__params[steps[step_no]]
+
+    #         for t in p.ticks():
+    #             # get this param to tick over one.
+    #             if user_cancelled:
+    #                 # unwind this recursive descent
+    #                 return
+    #             elif step_no == final_step:
+    #                 # If this is the last param in the set
+    #                 # Call user code with a fresh set of params
+    #                 # Doing this invokes the target, which gathers the args
+    #                 user_cancelled = not self.__show(img, title, headless=headless, delay=delay,img_index=index,total_images=total)
+    #                 # stash results
+    #                 curr_res_list.append(self.results)
+    #             else:
+    #                 # For all non final params - there's just
+    #                 # the ticking over,  no showing.
+    #                 creep_trackbar(step_no=step_no+1)
+    #         return
+
+    #     self.__carousel = carousel
+    #     for img, title, index, total in self.__carousel:
+    #         # kick off the recursive descent
+    #         curr_res_list = gs_result[title] = []
+    #         creep_trackbar(0)
+    #         if user_cancelled and esc_cancels_carousel: break
+
+    #     # save consolidated results
+    #     self.save_results(result=gs_result)
+    #     return
