@@ -267,9 +267,9 @@ class Tuner:
 
 
         def __enter__(self):
-            pass
-            # return self
-        def __exit__(self):
+            # weird way of doing it, but OK
+            return self
+        def __exit__(self, *args):
 
             # figure duration
             proc_time2 = time.process_time()
@@ -279,7 +279,11 @@ class Tuner:
                 outp += f"\t[process_time: {round(proc_time2 - self.proc_time1,5)}]"
             self.results["duration"] = outp
 
-            self.save_results()
+            try:
+                self.tuner.save_results(self.results)
+            except:
+                pass
+
             return
 
         @property
@@ -291,23 +295,26 @@ class Tuner:
             self.results["iterations"] = val
             return
 
-        def capture_result(self):
+        def capture_result(self, force=False):
             stash = True
 
             this_result = self.tuner.results
-            if self.tuner.save_tagged_only:
+            if not force and self.tuner.save_tagged_only:
                 if (not "tags" in this_result or len(this_result["tags"]) == 0):
                     # must have the tags object and one that is not empty
                     stash = False
-            # make a hive for this result
-            if not self.title in self.results:
-                res = self.results[self.title] = []
-            else:
-                res = self.results[self.title]
 
-            # we're getting a copy from tuner
-            # - no need to make another
-            res.append(this_result)
+
+            # make a hive for this result
+            if stash:
+                if not self.title in self.results:
+                    res = self.results[self.title] = []
+                else:
+                    res = self.results[self.title]
+
+                # we're getting a copy from tuner
+                # - no need to make another
+                res.append(this_result)
 
             return
 
@@ -562,7 +569,7 @@ class Tuner:
                 continue
             elif k == 99:
                 # F3 - dump params
-                cc.capture_result()
+                cc.capture_result(True)
                 # self.save_results()
                 # don't exit just yet - clock starts over
                 continue
@@ -674,7 +681,8 @@ class Tuner:
         with Tuner.CarouselContext(self, carousel, False) as car:
             for img in car:
                 ret  = self.__show(img,delay=0,cc=car)
-                if not ret: break
+                if not ret:
+                    break
 
         return ret
 
@@ -939,7 +947,9 @@ class Tuner:
         and image currently being processed
         '''
         prefix = self.window
-        it = self.__image_title
+        it = self.image_title
+        # check if window currently has an image
+        if it == prefix: it = None
         prefix = prefix + "." + it if not (it is None or it == "") else prefix
         if not self.overwrite_file:
             # get a unique file name
@@ -954,7 +964,7 @@ class Tuner:
                                 )
         else:
             # we can overwrite the func_name.image_name file
-            full_path_name = os.path.join(self.wip_dir, prefix, suffix)
+            full_path_name = os.path.join(self.wip_dir, prefix + suffix)
             full_path_name = os.path.realpath(full_path_name)
         return full_path_name
 
