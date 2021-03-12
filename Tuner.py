@@ -13,18 +13,21 @@ import time
 
 from enum import Enum, auto, Flag
 
-class Mark(Enum):
+class Tag(Enum):
     '''
     These are keycodes (on macOS at any rate)
     '''
     interesting = 109 # F10
     debug = 101 # F9
 
-
-# Change these if you have specific
-# samples you like to work with
-img_sample_color = "./tuner_sample_color.png"
-img_sample_bw = "./tuner_sample_bw.jpg"
+class SaveStyle(Flag):
+    '''
+    Change the Tuner.save_style static if the current scheme does not work for you.
+    '''
+    all = auto()
+    tagged = auto()
+    newfile = auto()
+    overwrite = auto()
 
 class tb_prop:
 
@@ -47,6 +50,15 @@ class Tuner:
     PUT_TEXT_SMALL = 0.7
     PUT_TEXT_NORMAL = 1.0
     PUT_TEXT_HEAVY = 2.0
+
+    # Change these if you have specific
+    # samples you like to work with
+    img_sample_color = "./tuner_sample_color.png"
+    img_sample_bw = "./tuner_sample_bw.jpg"
+
+    output_dir = "."
+    # why bother looking at uninteresting stuff, and let's preserve old runs
+    save_style = SaveStyle.tagged or SaveStyle.newfile
 
     class __tb:
 
@@ -220,25 +232,132 @@ class Tuner:
             else:
                 ret = self.data[key]
             return ret
+    class CarouselContext:
+        def __init__(self, tuner, files, headless):
+            '''
+            tuner: set to self
+            files: what the cat dragged in
+            headless: what the cat says
 
-    def __init__(self, *
-                , cb_main
-                , cb_downstream = None
-                , output_dir = "."
-                , def_window_title = ""
+            Usage:
+            Context Manager and Generator: manages the current carousel.
+            generator of image files, result tracker, updater of the tuner GUI's
+            WindowCaption.
+            '''
+            if isinstance(files,str): val = [files]
+            if not (files is None or isinstance(files,list)):
+                # don't accept anything else
+                # we probably got a single image
+                raise ValueError("Carousel can only be set to a single file name, or a list of file names.")
+
+            self.tuner = tuner
+            self.files = files
+            self.headless = headless
+            self.file_count = 0 if files is None else len(files)
+
+            self.results = {}
+            # placeholders
+            self.results["headless"] = headless
+            self.results["duration"] = ""
+            # probably only makes sense in the context of a grid search
+            self.results["iterations"] = 0
+
+            self.t1 = time.time()
+            self.proc_time1 = time.process_time()
+
+
+        def __enter__(self):
+            pass
+            # return self
+        def __exit__(self):
+
+            # figure duration
+            proc_time2 = time.process_time()
+            t2 = time.gmtime(time.time() - self.t1)
+            outp = f"{time.strftime('%H:%M:%S', t2 )}"
+            if t2.tm_sec <= 1 or (proc_time2 - self.proc_time1) < 1:
+                outp += f"\t[process_time: {round(proc_time2 - self.proc_time1,5)}]"
+            self.results["duration"] = outp
+
+            self.save_results()
+            return
+
+        @property
+        def iterations(self):
+            return self.results["iterations"]
+
+        @iterations.setter
+        def iterations(self,val):
+            self.results["iterations"] = val
+            return
+
+        def capture_result(self):
+            stash = True
+
+            this_result = self.tuner.results
+            if self.tuner.save_tagged_only:
+                if (not "tags" in this_result or len(this_result["tags"]) == 0):
+                    # must have the tags object and one that is not empty
+                    stash = False
+            # make a hive for this result
+            if not self.title in self.results:
+                res = self.results[self.title] = []
+            else:
+                res = self.results[self.title]
+
+            # we're getting a copy from tuner
+            # - no need to make another
+            res.append(this_result)
+
+            return
+
+        def __iter__(self):
+            '''
+            Generator. Iterate over the user supplied carousel.
+            '''
+            self.title = None
+            img = None
+
+            if self.files is None:
+                # We want one iteration when there's nothing
+                # - so yield this once. This is prob coming
+                # from the decorator impl
+                # No image title - let the tuner default
+                # to what it will
+                self.tuner.image_title = None
+                self.title = "no_image"
+                yield img
+            else:
+                for index, fname in enumerate(self.files):
+                    img = cv2.imread(fname)
+                    if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
+                    self.title = os.path.split(fname)[1]
+                    # Stash the last result before we change the image,
+                    if index > 0: self.capture_result()
+                    self.tuner.image_title = (self.title,index+1,self.file_count)
+                    yield img
+
+            # done iterating the images, capture the last result
+            self.capture_result()
+            return
+
+    def __init__(self, func, *
+                , downstream_func = None
                 ):
         '''
-        Please see the readme fo more detail.
-        name:           Required, Window name, default window title, and prefix for output files
-        cb_main:        Required. The main target of tuning.
-        cb_downstream:  Optional. Similar to cb_main, this is a downstream function to be called after cb_main.
-        This is not tuned, but it can display an image in a second (downstream) window.
-        output_dir      Optional. Where Tuner will dump temporary files, results etc.
+        Please see the readme for detail.
+        func:           Required. The main target of tuning.
+        downstream_func:Optional. Similar to func, this is a downstream function to be called after func.
+                        Downstream receives the same instance of Tuner, and displays the downstream
+                        (second) image in a downstream window.
         '''
-        self.wip_dir = "." if (output_dir is None or output_dir == "") else os.path.realpath(output_dir)
+        # set up config
+        self.wip_dir = "." if (Tuner.output_dir is None or Tuner.output_dir == "") else os.path.realpath(Tuner.output_dir)
+        self.save_tagged_only = True if (Tuner.save_style and SaveStyle.tagged) else False
+        self.overwrite_file = True if (Tuner.save_style and SaveStyle.overwrite) else False
 
         # provided later
-        self.__carousel_files = None
+        # self.__carousel_files = None
         self.__unprocessed_image = None
         self.__args = {}
         self.__params = {}
@@ -249,12 +368,9 @@ class Tuner:
         self.__calling_main = True
 
         # primary function to tune with its attendant image and other params
-        self.__cb_main = cb_main
-        if def_window_title is None or def_window_title == "":
-            # base the main window name on the name of the function
-            self.__window_name = self.get_func_name(cb_main)
-        else:
-            self.__window_name = def_window_title
+        self.__cb_main = func
+        # base the main window name on the name of the function
+        self.__window_name = self.get_func_name(func)
 
         # result of tuning
         self.__image_main = None
@@ -267,12 +383,12 @@ class Tuner:
 
         # optional secondary function which is passed
         # the tuned parameters and the image from primary tuning
-        self.__cb_downstream = cb_downstream
-        self.__downstream_window_name = self.get_func_name(cb_downstream)
+        self.__cb_downstream = downstream_func
+        self.__downstream_window_name = self.get_func_name(downstream_func)
 
         self.__image_downstream = None
         self.__thumbnail_downstream = None
-        if not cb_downstream is None:
+        if not downstream_func is None:
             # we have 2 pictures to show
             cv2.namedWindow(self.downstream_window,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
 
@@ -418,7 +534,7 @@ class Tuner:
         self.overlay = self.results
 
         return
-    def __show(self, img, title,delay=0, headless=False, img_index = None, total_images=None):
+    def __show(self, img, cc:CarouselContext, delay=0, headless=False):
         '''
         This is the original show - paths from the public show interface like begin() and review() come here.
         img:        the image to work with
@@ -429,7 +545,6 @@ class Tuner:
         cancel = False
         # this may be None and that is OK
         self.__unprocessed_image = img
-        self.__image_title = (title,img_index,total_images)
         self.__invocation_errors = {}
         self.__results = {}
 
@@ -447,11 +562,12 @@ class Tuner:
                 continue
             elif k == 99:
                 # F3 - dump params
-                self.save_results()
+                cc.capture_result()
+                # self.save_results()
                 # don't exit just yet - clock starts over
                 continue
             elif k in [101, 109]:
-                self.mark_result(k)
+                self.tag_result(k)
                 continue
             else:
                 # any other key - done with this image
@@ -459,8 +575,8 @@ class Tuner:
                 cancel = (k==27)
                 break
         return not cancel
-    def mark_result(self, obs:Mark):
-        key = Mark(obs).name
+    def tag_result(self, obs:Tag):
+        key = Tag(obs).name
         if not self.__results is None:
             if not "tags" in self.__results: self.__results["tags"] = {}
             self.__results["tags"][key] = True
@@ -469,13 +585,25 @@ class Tuner:
         '''
         Returns a list containing the range of each of the trackbars in this tuner.
         And another of the keys with which this list was butilt.
+        There is a positional correspondence between the two lists.
         '''
         # Eventually will get to filtering the set of params we actually take
         keys = list(self.__params.keys())
         ranges = [r for r in [self.__params[key].range() for key in keys]]
         return ranges, keys
+    def set_values_headless(self, t, keys):
+        '''
+        t:      tuple or values
+        keys:   list of keys to update
+        '''
+        # Each tuple t is a combination of trackbar values
+        # and will have the same length as keys
+        for i in range(len(keys)):
+            # skip the UI refresh on every property set
+            self.__params[keys[i]].set_value(t[i],headless_op=True)
 
-    def grid_search(self, carousel, headless=False,delay=3_000, esc_cancels_carousel = False):
+        return
+    def grid_search(self, carousel, headless=False,delay=2_000, esc_cancels_carousel = False):
         '''
         Conducts a grid search across the trackbar configuration, and saves
         aggregated results to file. When not in headless mode, you can
@@ -487,64 +615,33 @@ class Tuner:
                             -- out of tuning the current image only (False), or
                             -- out of the entire carousel as well (True)
         '''
-        gs_result = {}
-        gs_result["headless"] = headless
-        iterations = gs_result["iterations"] = 0
-        outp = gs_result["duration"] = ""
-        t1 = time.time()
-        proc_time1 = time.process_time()
+        with Tuner.CarouselContext(self, carousel, headless) as car:
+            iterations = 0
+            # the ranges that our trackbars have
+            ranges, keys = self.get_ranges()
+            # ready to iterate
+            for img in car:
+                # Bang on this image.
+                user_cancelled = False
+                # Prod iterates over the complete set of values
+                #  that this constellation of trackbars could have.
+                # It needs to be rebuilt for each file, as
+                # an iteration will exhaust it.
+                prod = it.product(*ranges)
+                for t in prod:
+                    # Update the trackbar values.
+                    self.set_values_headless(t, keys)
+                    # Invoke target
+                    iterations += 1
+                    user_cancelled = not self.__show(img,headless=headless,delay=delay,cc=car)
+                    # stash results if headless, otherwise the user will do that with F3
+                    if headless: car.capture_result()
+                    if user_cancelled : break #out of this image
+                # done with the last image
+                if user_cancelled and esc_cancels_carousel: break
+            # record how many iterations before you exit the context
+            car.iterations = iterations
 
-        # the ranges that our trackbars have
-        ranges, keys = self.get_ranges()
-        range_keys = range(len(keys))
-
-        # ready to iterate
-        self.__carousel = carousel
-        for img, title, index, total in self.__carousel:
-            user_cancelled = False
-            curr_res_list = gs_result[title] = []
-            # cartesian product - needs to be
-            # rebuilt for each file, as an iteration
-            # will exhaust it.
-            prod = it.product(*ranges)
-            # Bang on this image.
-            # Prod iterates over the complete set of values that this
-            # constellation of trackbars could have.
-            for t in prod:
-                # Update the trackbar values.
-                # Each tuple t is a complete combination and
-                # will have the same length as the range of keys
-                for i in range_keys:
-                    # skip the UI refresh on every property set
-                    self.__params[keys[i]].set_value(t[i],headless_op=True)
-
-                # Now that the args have been set, invoke the
-                # target which gathers the args we just set
-                iterations += 1
-                user_cancelled = not self.__show(img, title
-                                                    ,headless=headless
-                                                    ,delay=delay
-                                                    ,img_index=index,total_images=total)
-                # stash results
-                curr_res_list.append(self.results)
-                if user_cancelled : break
-            # done iterating values for that image
-            if user_cancelled and esc_cancels_carousel: break
-
-        # done iterating images
-        proc_time2 = time.process_time()
-        t2 = time.gmtime(time.time() - t1)
-
-        outp = f"{time.strftime('%H:%M:%S', t2 )}"
-        if t2.tm_sec <= 1 or (proc_time2 - proc_time1) < 1:
-            outp += f"\t[process_time: {round(proc_time2 - proc_time1,5)}]"
-
-        # record how many and how long this took
-        gs_result["iterations"] = iterations
-        gs_result["duration"] = outp
-
-        # save consolidated results
-        self.save_results(result=gs_result)
         return
 
     def review(self, carousel, delay=2_000):
@@ -560,13 +657,10 @@ class Tuner:
                 -- A list of fully qualified file names, each of which will be processed
         delay   : miliseconds to hold the display
         '''
-        self.__carousel = carousel
-        img = title = None
-        ret = True
-
-        for img, title, index, total in self.__carousel:
-            ret  = self.__show(img,title,delay,img_index=index, total_images=total)
-            if not ret: break
+        with Tuner.CarouselContext(self, carousel, False) as car:
+            for img in car:
+                ret  = self.__show(img,delay=delay,cc=car)
+                if not ret: break
 
         return ret
 
@@ -577,8 +671,12 @@ class Tuner:
                 When a list, each image is processed until interruped via the keyboard.
                 Hit Esc to cancel the whole stack.
         '''
+        with Tuner.CarouselContext(self, carousel, False) as car:
+            for img in car:
+                ret  = self.__show(img,delay=0,cc=car)
+                if not ret: break
 
-        return self.review(carousel=carousel,delay=0)
+        return ret
 
     def save_image(self):
         '''
@@ -614,48 +712,48 @@ class Tuner:
             ret = False
 
         return ret
+    # @property
+    # def __carousel(self):
+    #     # generator
+    #     title = None
+    #     img = None
+    #     index = total = 0
+    #     if self.__carousel_files is None:
+    #         # we want one iteration when there's nothing
+    #         # - so yield this once
+    #         yield img, title, 0, 0
+    #     else:
+    #         total = len(self.__carousel_files)
+    #         for index, fname in enumerate(self.__carousel_files):
+    #             img = cv2.imread(fname)
+    #             if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
+    #             title = os.path.split(fname)[1]
+    #             yield img, title, (index+1), total
+
+    #     return
+
+    # @__carousel.setter
+    # def __carousel(self,val):
+
+    #     if isinstance(val,str): val = [val]
+
+    #     if val is None or isinstance(val,list):
+    #         # this is cool
+    #         pass
+    #     else:
+    #         # don't accept anything else
+    #         # we probably got a single image
+    #         raise ValueError("Carousel can only be set to a single file name, or a list of file names.")
+
+    #     self.__carousel_files = val
+    #     return
+
     @property
-    def __carousel(self):
-        # generator
-        title = None
-        img = None
-        index = total = 0
-        if self.__carousel_files is None:
-            # we want one iteration when there's nothing
-            # - so yield this once
-            yield img, title, 0, 0
-        else:
-            total = len(self.__carousel_files)
-            for index, fname in enumerate(self.__carousel_files):
-                img = cv2.imread(fname)
-                if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
-                title = os.path.split(fname)[1]
-                yield img, title, (index+1), total
-
-        return
-
-    @__carousel.setter
-    def __carousel(self,val):
-
-        if isinstance(val,str): val = [val]
-
-        if val is None or isinstance(val,list):
-            # this is cool
-            pass
-        else:
-            # don't accept anything else
-            # we probably got a single image
-            raise ValueError("Carousel can only be set to a single file name, or a list of file names.")
-
-        self.__carousel_files = val
-        return
-
-    @property
-    def __image_title(self):
+    def image_title(self):
         return self.__img_title
 
-    @__image_title.setter
-    def __image_title(self,val):
+    @image_title.setter
+    def image_title(self,val):
         title = index = total = None
         if val is None:
             # go with func name
@@ -843,24 +941,30 @@ class Tuner:
         prefix = self.window
         it = self.__image_title
         prefix = prefix + "." + it if not (it is None or it == "") else prefix
-        prefix += "."
-        _, full_path_name = tempfile.mkstemp(
+        if not self.overwrite_file:
+            # get a unique file name
+            prefix += "."
+            # we're just going to leave this file lying around
+            _, full_path_name = tempfile.mkstemp(
                                 # makes it easy to find
                                 prefix=prefix
                                 ,suffix=suffix
                                 ,dir=self.wip_dir
                                 ,text=True
                                 )
-        # we're just going to leave this file lying around
+        else:
+            # we can overwrite the func_name.image_name file
+            full_path_name = os.path.join(self.wip_dir, prefix, suffix)
+            full_path_name = os.path.realpath(full_path_name)
         return full_path_name
 
     @staticmethod
     def get_sample_image_color():
-        return cv2.imread(img_sample_color)
+        return cv2.imread(Tuner.img_sample_color)
 
     @staticmethod
     def get_sample_image_bw():
-        return cv2.imread(img_sample_bw)
+        return cv2.imread(Tuner.img_sample_bw)
 
     @staticmethod
     def tuner_from_json(name, cb_main, cb_downstream, json_def:dict):
@@ -1019,58 +1123,3 @@ class Tuner:
         return x, x1, y, y1
 
 
-# def grid_search_old(self, carousel, headless=False,delay=3_000, esc_cancels_carousel = False):
-    #     '''
-    #     Conducts a grid search across the trackbar configuration, and saves
-    #     aggregated results to file. When not in headless mode, you can
-    #     save images and results for individual files as they are displayed.
-    #     carousel:   Like review(), a list of image file names
-    #     headless:   When doing large searches, set this to True to suppress the display.
-    #     delay   :   When not in headless mode, acts like review()
-    #     esc_cancels_carousel: When you submit a carousel, does the 'Esc' key get you:
-    #                         -- out of tuning the current image only (False), or
-    #                         -- out of the entire carousel as well (True)
-    #     '''
-    #     steps = list(self.__params.keys())
-    #     final_step = len(steps) - 1
-    #     img = title = index = total = None
-    #     gs_result = {}
-    #     curr_res_list = None
-    #     # Once this get set to false, the recursive descent unwinds
-    #     # Whether we go on to the next file in the carousel depends
-    #     # on the
-    #     user_cancelled = False
-
-    #     def creep_trackbar(step_no):
-    #         nonlocal user_cancelled
-    #         # which trackbar/param are we talking about?
-    #         p = self.__params[steps[step_no]]
-
-    #         for t in p.ticks():
-    #             # get this param to tick over one.
-    #             if user_cancelled:
-    #                 # unwind this recursive descent
-    #                 return
-    #             elif step_no == final_step:
-    #                 # If this is the last param in the set
-    #                 # Call user code with a fresh set of params
-    #                 # Doing this invokes the target, which gathers the args
-    #                 user_cancelled = not self.__show(img, title, headless=headless, delay=delay,img_index=index,total_images=total)
-    #                 # stash results
-    #                 curr_res_list.append(self.results)
-    #             else:
-    #                 # For all non final params - there's just
-    #                 # the ticking over,  no showing.
-    #                 creep_trackbar(step_no=step_no+1)
-    #         return
-
-    #     self.__carousel = carousel
-    #     for img, title, index, total in self.__carousel:
-    #         # kick off the recursive descent
-    #         curr_res_list = gs_result[title] = []
-    #         creep_trackbar(0)
-    #         if user_cancelled and esc_cancels_carousel: break
-
-    #     # save consolidated results
-    #     self.save_results(result=gs_result)
-    #     return

@@ -66,7 +66,10 @@ class TunedFunction(DecoratorBase):
 		# Note, doing a partial on a method also curries
 		# the self along with it.
 		cb = functools.partial(self.intercept)
-		self.tuner = Tuner(cb_main=cb,def_window_title=self.func_name)
+		self.tuner = Tuner(cb)
+		# figure out how to get this in - its okay to be
+		# fugly for now.
+		# ,def_window_title=self.func_name
 
 		# See if there's anything we can tune
 		# If our target is a bound method, we
