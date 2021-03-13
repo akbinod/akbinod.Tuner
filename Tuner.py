@@ -15,11 +15,23 @@ from enum import Enum, auto, Flag
 
 class Tags(Enum):
     '''
-    These are keycodes (on macOS at any rate)
+    These are keycodes (macOS). The following are available for users to map.
+    Just change this Enum - the rest is automatic.
+    F1 - 122,   available
+    F2          in use by Tuner, cannot be remapped
+    F3          in use by Tuner, cannot be remapped
+    F4 - 118    available
+    F5 - 96     available
+    F7 - 98     available
+    F6 -        not available - trapped by cv
+    F8 - 100    in use by Tuner, but can be remapped
+    F9 - 101    in use by Tuner, but can be remapped
+    F10 - 109   in use by Tuner, but can be remapped
     '''
-    exact = 109 # F10
-    debug = 101 # F9
-    close = 100 # F8
+    exact   = 109 # F10
+    debug   = 101 # F9
+    close   = 100 # F8
+    just    = 98
 
 class SaveStyle(Flag):
     '''
@@ -59,7 +71,7 @@ class Tuner:
 
     output_dir = "./wip"
     # why bother looking at uninteresting stuff, and let's preserve old runs
-    save_style = SaveStyle.tagged or SaveStyle.newfile
+    save_style = SaveStyle.tagged | SaveStyle.newfile
 
     class __tb:
 
@@ -296,15 +308,20 @@ class Tuner:
             self.results["iterations"] = val
             return
 
-        def capture_result(self, force=False):
-            stash = True
+        def capture_result(self, user_requested=False):
+            stash = False
 
             this_result = self.tuner.results
-            if not force and self.tuner.save_tagged_only:
-                if (not "tags" in this_result or len(this_result["tags"]) == 0):
+            if user_requested or self.tuner.save_all:
+                # either user requested save,
+                # or we are configured to save all
+                stash = True
+            else:
+                # this save is not user requested
+                # and we should only save tagged results
+                if ("tags" in this_result and len(this_result["tags"]) > 0):
                     # must have the tags object and one that is not empty
                     stash = False
-
 
             # make a hive for this result
             if stash:
@@ -361,9 +378,17 @@ class Tuner:
         if not os.path.exists(self.wip_dir): self.wip_dir = "."
         self.wip_dir = os.path.realpath(self.wip_dir)
 
-        self.save_tagged_only = True if (Tuner.save_style and SaveStyle.tagged) else False
-        self.overwrite_file = True if (Tuner.save_style and SaveStyle.overwrite) else False
-        self.tag_keys = t = [i.value for i in Tags]
+        self.save_all = False if (Tuner.save_style & SaveStyle.tagged == SaveStyle.tagged) else True
+        self.overwrite_file = True if (Tuner.save_style & SaveStyle.overwrite == SaveStyle.overwrite) else False
+        self.tag_codes = [i.value for i in Tags]
+        # tag_names = [i.name for i in Tags]
+        function_keys ={122:"F1", 118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
+        key_map = "F2:save img F3:save res | Tag & Save ["
+        for k in self.tag_codes:
+            fk = function_keys[k]
+            name = Tags(k).name
+            key_map += fk + ":" + name + " "
+        key_map += "]"
 
         # provided later
         self.__unprocessed_image = None
@@ -388,7 +413,7 @@ class Tuner:
         # cv2.WINDOW_NORMAL|
         # we need this window regardless of there the user wants a picture in it
         cv2.namedWindow(self.window,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
-        self.overlay = "F2:save img | F3:save res | Tag & Save [F8-close: F9-debug: F10-exact]"
+        self.overlay = key_map
         # optional secondary function which is passed
         # the tuned parameters and the image from primary tuning
         self.__cb_downstream = downstream_func
@@ -577,8 +602,9 @@ class Tuner:
                 # self.save_results()
                 # don't exit just yet - clock starts over
                 continue
-            elif k in self.tag_keys:
+            elif k in self.tag_codes:
                 self.tag_result(k)
+                cc.capture_result(True)
                 continue
             else:
                 # any other key - done with this image
@@ -587,10 +613,11 @@ class Tuner:
                 break
         return not cancel
     def tag_result(self, obs:Tags):
-        key = Tags(obs).name
+        tag = Tags(obs).name
         if not self.__results is None:
             if not "tags" in self.__results: self.__results["tags"] = {}
-            self.__results["tags"][key] = True
+            self.__results["tags"][tag] = True
+
         return
     def get_ranges(self):
         '''
