@@ -13,12 +13,13 @@ import time
 
 from enum import Enum, auto, Flag
 
-class Tag(Enum):
+class Tags(Enum):
     '''
     These are keycodes (on macOS at any rate)
     '''
-    interesting = 109 # F10
+    exact = 109 # F10
     debug = 101 # F9
+    close = 100 # F8
 
 class SaveStyle(Flag):
     '''
@@ -56,7 +57,7 @@ class Tuner:
     img_sample_color = "./tuner_sample_color.png"
     img_sample_bw = "./tuner_sample_bw.jpg"
 
-    output_dir = "."
+    output_dir = "./wip"
     # why bother looking at uninteresting stuff, and let's preserve old runs
     save_style = SaveStyle.tagged or SaveStyle.newfile
 
@@ -339,13 +340,9 @@ class Tuner:
                     img = cv2.imread(fname)
                     if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
                     self.title = os.path.split(fname)[1]
-                    # Stash the last result before we change the image,
-                    if index > 0: self.capture_result()
                     self.tuner.image_title = (self.title,index+1,self.file_count)
                     yield img
-
-            # done iterating the images, capture the last result
-            self.capture_result()
+                # done iterating the images
             return
 
     def __init__(self, func, *
@@ -359,12 +356,16 @@ class Tuner:
                         (second) image in a downstream window.
         '''
         # set up config
+        # sort out where we will save results, defaulting to cwd
         self.wip_dir = "." if (Tuner.output_dir is None or Tuner.output_dir == "") else os.path.realpath(Tuner.output_dir)
+        if not os.path.exists(self.wip_dir): self.wip_dir = "."
+        self.wip_dir = os.path.realpath(self.wip_dir)
+
         self.save_tagged_only = True if (Tuner.save_style and SaveStyle.tagged) else False
         self.overwrite_file = True if (Tuner.save_style and SaveStyle.overwrite) else False
+        self.tag_keys = t = [i.value for i in Tags]
 
         # provided later
-        # self.__carousel_files = None
         self.__unprocessed_image = None
         self.__args = {}
         self.__params = {}
@@ -387,7 +388,7 @@ class Tuner:
         # cv2.WINDOW_NORMAL|
         # we need this window regardless of there the user wants a picture in it
         cv2.namedWindow(self.window,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
-
+        self.overlay = "F2:save img | F3:save res | Tag & Save [F8-close: F9-debug: F10-exact]"
         # optional secondary function which is passed
         # the tuned parameters and the image from primary tuning
         self.__cb_downstream = downstream_func
@@ -492,7 +493,7 @@ class Tuner:
     @status.setter
     def overlay(self, val):
         try:
-            cv2.displayOverlay(self.window, val,delayms=1_000)
+            cv2.displayOverlay(self.window, val,delayms=0)
         except:
             # user does not have the Qt backend installed. Pity.
             pass
@@ -538,8 +539,11 @@ class Tuner:
 
         show_main()
         show_downstream()
-        self.overlay = self.results
+        self.__show_results(self.results)
 
+        return
+    def __show_results(self, res):
+        # TBD
         return
     def __show(self, img, cc:CarouselContext, delay=0, headless=False):
         '''
@@ -573,7 +577,7 @@ class Tuner:
                 # self.save_results()
                 # don't exit just yet - clock starts over
                 continue
-            elif k in [101, 109]:
+            elif k in self.tag_keys:
                 self.tag_result(k)
                 continue
             else:
@@ -582,8 +586,8 @@ class Tuner:
                 cancel = (k==27)
                 break
         return not cancel
-    def tag_result(self, obs:Tag):
-        key = Tag(obs).name
+    def tag_result(self, obs:Tags):
+        key = Tags(obs).name
         if not self.__results is None:
             if not "tags" in self.__results: self.__results["tags"] = {}
             self.__results["tags"][key] = True
@@ -681,8 +685,7 @@ class Tuner:
         with Tuner.CarouselContext(self, carousel, False) as car:
             for img in car:
                 ret  = self.__show(img,delay=0,cc=car)
-                if not ret:
-                    break
+                if not ret: break
 
         return ret
 
@@ -720,41 +723,6 @@ class Tuner:
             ret = False
 
         return ret
-    # @property
-    # def __carousel(self):
-    #     # generator
-    #     title = None
-    #     img = None
-    #     index = total = 0
-    #     if self.__carousel_files is None:
-    #         # we want one iteration when there's nothing
-    #         # - so yield this once
-    #         yield img, title, 0, 0
-    #     else:
-    #         total = len(self.__carousel_files)
-    #         for index, fname in enumerate(self.__carousel_files):
-    #             img = cv2.imread(fname)
-    #             if img is None: raise ValueError(f"Tuner could not find file {fname}. Check full path to file.")
-    #             title = os.path.split(fname)[1]
-    #             yield img, title, (index+1), total
-
-    #     return
-
-    # @__carousel.setter
-    # def __carousel(self,val):
-
-    #     if isinstance(val,str): val = [val]
-
-    #     if val is None or isinstance(val,list):
-    #         # this is cool
-    #         pass
-    #     else:
-    #         # don't accept anything else
-    #         # we probably got a single image
-    #         raise ValueError("Carousel can only be set to a single file name, or a list of file names.")
-
-    #     self.__carousel_files = val
-    #     return
 
     @property
     def image_title(self):
@@ -835,20 +803,21 @@ class Tuner:
 
         if self.__calling_main:
             if overwrite or (not "main" in self.__results):
+                # either called from userland, or no results
+                # AND this is the default return capture
+
                 # let's track the args associate with these results as well
                 self.__results["args"] = self.args
                 self.__results["main"] = res
                 self.__results["tags"] = {}
+                if not overwrite:
+                    self.__results["return_capture"] = True
         else:
             # the object setting this is the downstream func
             if overwrite or (not "downstream" in self.__results):
                 self.__results["downstream"] = res
-
-
-        if not self.results is None and self.results == {}:
-            # The function returns but the user has
-            # not set results - do the honors
-            self.results = results
+                if not overwrite:
+                    self.__results["return_capture"] = True
 
     @property
     def errors(self):
@@ -947,9 +916,11 @@ class Tuner:
         and image currently being processed
         '''
         prefix = self.window
-        it = self.image_title
-        # check if window currently has an image
-        if it == prefix: it = None
+        # it = self.image_title
+        # # check if window currently has an image
+        # if it == prefix: it = None
+        # image title is in the result file, so leave that out of here
+        it = None
         prefix = prefix + "." + it if not (it is None or it == "") else prefix
         if not self.overwrite_file:
             # get a unique file name
