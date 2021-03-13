@@ -88,11 +88,12 @@ class Tuner:
                                                 ,self.default
                                                 ,self.max
                                                 ,self.set_value)
+            cv2.setTrackbarMin(self.name, self.tuner.window,self.min)
             # create an attribute with the same name as the tracked property
             setattr(Tuner,name, tb_prop(self.get_value))
             # do not trigger the event - things are just getting set up
             # the "begin()" and other methods will reach out for the args anyway
-            self._value = self.default
+            self.set_value(self.default,True)
             # self.set_value(self.default)
         def spec(self):
             # these must be ints, not floats
@@ -111,12 +112,16 @@ class Tuner:
             # Just put away whatever value you get.
             # We'll interpret (e.g. nulls) when get_value is accessed.
             self._value = val
-            if not headless_op:
+            if headless_op:
+                # this will not trigger an update event
+                cv2.setTrackbarPos(self.name, self.tuner.window,val)
+            else:
                 # python will delegate to the most derived class
                 # the next line will kick off a refresh of the image
                 if not self.on_update is None: self.on_update(self.name,self.get_value())
                 # show the new parameter for 10 seconds
-                self.tuner.status = self.name + ":" + str(self.get_display_value())
+
+            self.tuner.status = self.name + ":" + str(self.get_display_value())
             return
 
         def get_value(self):
@@ -507,7 +512,7 @@ class Tuner:
     @status.setter
     def status(self, val):
         try:
-            cv2.displayStatusBar(self.tuner.window,val,10_000)
+            cv2.displayStatusBar(self.window,val,10_000)
         except:
             pass
 
