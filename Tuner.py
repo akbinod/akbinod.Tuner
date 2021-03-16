@@ -2,59 +2,16 @@ import numpy as np
 import cv2
 import copy
 import os
-import tempfile
-import sys
-import json
-import time
+
 
 import inspect
 import functools
 import itertools as it
 import matplotlib.pyplot as plt
 
-from enum import Enum, auto, Flag
 from CarouselContext import CarouselContext
-
-class Tags(Enum):
-    '''
-    These are keycodes (macOS). The following are available for users to map.
-    Just change this Enum - the rest is automatic.
-    F1 - 122,   available
-    F2          in use by Tuner, cannot be remapped
-    F3          in use by Tuner, cannot be remapped
-    F4 - 118    available
-    F5 - 96     available
-    F7 - 98     available
-    F6 -        not available - trapped by cv
-    F8 - 100    in use by Tuner, but can be remapped
-    F9 - 101    in use by Tuner, but can be remapped
-    F10 - 109   in use by Tuner, but can be remapped
-    '''
-    exact   = 109 # F10
-    debug   = 101 # F9
-    close   = 100 # F8
-    just    = 98
-
-class SaveStyle(Flag):
-    '''
-    Change the Tuner.save_style static if the current scheme does not work for you.
-    '''
-    all = auto()
-    tagged = auto()
-    newfile = auto()
-    overwrite = auto()
-
-class tb_prop:
-
-    def __init__(self, get_val_method):
-        self.get_val_method = get_val_method
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        else:
-            return self.get_val_method()
-    def __set__(self, instance, value):
-        return
+from tb import tb, tb_boolean, tb_dict, tb_list, tb_prop
+from constants import *
 
 class Tuner:
     # statics
@@ -75,184 +32,6 @@ class Tuner:
     # why bother looking at uninteresting stuff, and let's preserve old runs
     save_style = SaveStyle.tagged | SaveStyle.newfile
 
-    class __tb:
-
-        def __init__(self, tuner, name, *, max, min, default, cb_on_update=None) -> None:
-            if max is None: raise ValueError("Must have 'max' to define a regular trackbar.")
-            self.tuner = tuner
-            self.on_update = cb_on_update
-            self.name = name
-            self.max = max
-            self.min = 0 if min is None else (min if min >= 0 else 0)
-            self.default = self.min if default is None else (self.min if default <= self.min or default > self.max else default)
-            self._value = self.default
-            self.trackbar = cv2.createTrackbar(name, tuner.window
-                                                ,self.default
-                                                ,self.max
-                                                ,self.set_value)
-            cv2.setTrackbarMin(self.name, self.tuner.window,self.min)
-            # create an attribute with the same name as the tracked property
-            setattr(Tuner,name, tb_prop(self.get_value))
-            # do not trigger the event - things are just getting set up
-            # the "begin()" and other methods will reach out for the args anyway
-            self.set_value(self.default,True)
-            # self.set_value(self.default)
-        def spec(self):
-            # these must be ints, not floats
-            return int(self.max), int(self.default)
-        def range(self):
-            # if the user wants to see a certain min, why default to 0
-            # range will not return the 'max' value
-            ret = range(self.min, self.max + 1)
-            return ret
-
-        def set_value(self,val, headless_op=False):
-            '''
-            This callback for OpenCV cannot be modified. It's not particularly
-            necessary to override this either. You must override get_value
-            '''
-            # Just put away whatever value you get.
-            # We'll interpret (e.g. nulls) when get_value is accessed.
-            self._value = val
-            if headless_op:
-                # this will not trigger an update event
-                cv2.setTrackbarPos(self.name, self.tuner.window,val)
-            else:
-                # python will delegate to the most derived class
-                # the next line will kick off a refresh of the image
-                if not self.on_update is None: self.on_update(self.name,self.get_value())
-                # show the new parameter for 10 seconds
-
-            self.tuner.status = self.name + ":" + str(self.get_display_value())
-            return
-
-        def get_value(self):
-            '''
-            Must be overridden by derivers.
-            Provides a class specific interpretation of trackbar values
-
-            '''
-            # guard for None
-            ret = self.min if self._value is None else self._value
-            # guard for bad input by the user
-            ret = self.min if ret < self.min else self._value
-            return ret
-
-        def get_display_value(self):
-            '''
-            Override this if you have a special formatting to apply
-            '''
-            return self.get_value()
-
-        def ticks(self):
-            # generator over the range of values
-            for i in range(self.max):
-                # tick over and set value to new
-                # do this "headless" so that we
-                # are not refreshing unnecessarily
-                self._value = i
-                yield i
-            return
-    class __tb_boolean(__tb):
-        def __init__(self, tuner, name, *, default=False, cb_on_update=None) -> None:
-            '''
-            Represents True/False values.
-            '''
-            default=0 if default == False else 1
-            super().__init__(tuner, name,min=0,max=1,default=default,cb_on_update=cb_on_update)
-
-        def get_value(self):
-            ret = super().get_value()
-            ret = False if ret <= 0 else True
-            return ret
-    class __tb_list(__tb):
-        def __init__(self, tuner, name, *, data_list, display_list=None, default_item=None, return_index=True, cb_on_update=None) -> None:
-            '''
-            Represents a list of values. The trackbar is used to pick the list index
-            and the returned value is the corresponding item from the list.
-            When display_list is provided, then the corresponding value from it
-            is used in Tuner's displays - but not returned anywhere.
-            '''
-            if data_list is None: raise ValueError("Must have data_list to define a list trackbar.")
-            self.__data_list = data_list
-            self.__display_list = display_list
-            max = min = default = 0
-            if not data_list is None:
-                max = len(data_list) - 1
-                default = 0
-                if not default_item is None:
-                    if default_item in data_list:
-                        # user specified a list item
-                        default = data_list.index(default_item)
-                    elif isinstance(default_item,int) and default_item < len(data_list):
-                        # user specified a list index
-                        default = default_item
-
-            if not display_list is None:
-                if len(data_list) != len(display_list):
-                    raise ValueError("Display list must match data list in length.")
-
-            self.__return_index = return_index
-            super().__init__(tuner, name, max=max, min=0, default=default
-                            , cb_on_update=cb_on_update)
-
-        def get_value(self):
-            ret = super().get_value()
-            if not self.__return_index:
-                ret = self.__data_list[ret]
-            return ret
-
-        def get_display_value(self):
-
-            if self.__display_list is None:
-                ret = self.get_value()
-            else:
-                ret = super().get_value()
-                ret = self.__display_list[ret]
-            return ret
-    class __tb_dict(__tb_list):
-        def __init__(self, tuner, name, dict_like, *, default_item_key, return_key=True, cb_on_update) -> None:
-            '''
-            Like a list tracker. Keys become data items, and associated data become display items.
-            When return_key is True: you get the key back
-            When return_key is False: you get the object relating to key
-
-            '''
-            self.__return_key = return_key
-            self.data = dict_like
-            try:
-                # make a list of the keys
-                display_list = list(dict_like.keys())
-                # and a list of values
-                data_list = [obj for obj in [dict_like[key] for key in dict_like]]
-                assert data_list is not None and len(data_list) > 0
-            except:
-                raise ValueError("Dict like object must be populated and support key iteration.")
-
-            try:
-                if default_item_key is None: default_item_key = display_list[0]
-                assert  default_item_key in dict_like
-            except:
-                raise ValueError("Default item not found in dict_like.")
-
-            # given the setup in init, we want the list index back
-            super().__init__(tuner, name
-                                , data_list=data_list
-                                , display_list=display_list
-                                , default_item=default_item_key
-                                , cb_on_update=cb_on_update
-                                , return_index=True)
-
-            return
-        def get_value(self):
-            key_index = super().get_value()
-            key =  list(self.data.keys())[key_index]
-            if self.__return_key:
-                ret =key
-            else:
-                ret = self.data[key]
-            return ret
-
     def __init__(self, func, *
                 , downstream_func = None
                 ):
@@ -271,7 +50,9 @@ class Tuner:
 
         self.save_all = False if (Tuner.save_style & SaveStyle.tagged == SaveStyle.tagged) else True
         self.overwrite_file = True if (Tuner.save_style & SaveStyle.overwrite == SaveStyle.overwrite) else False
+        # used by the carousel context
         self.tag_codes = [i.value for i in Tags]
+        self.tag_names = [i.name for i in Tags]
         # tag_names = [i.name for i in Tags]
         function_keys ={122:"F1", 118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
         key_map = "F2:save img F3:save res | Tag & Save ["
@@ -285,9 +66,10 @@ class Tuner:
         self.__unprocessed_image = None
         self.__args = {}
         self.__params = {}
-        self.__invocation_errors = {}
         self.__results = {}
-
+        # Holds path names to images needed by the client
+        # who may want to open them in special ways with imread
+        self.context_files = []
         # the safe default
         self.__calling_main = True
 
@@ -304,7 +86,10 @@ class Tuner:
         # cv2.WINDOW_NORMAL|
         # we need this window regardless of there the user wants a picture in it
         cv2.namedWindow(self.window,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
+        # button = cv2.createButton(self.window,self.button_clicked, userData="grid_search", buttonType=cv2.QT_PUSH_BUTTON | cv2.QT_NEW_BUTTONBAR)
+
         self.overlay = key_map
+
         # optional secondary function which is passed
         # the tuned parameters and the image from primary tuning
         self.__cb_downstream = downstream_func
@@ -316,6 +101,8 @@ class Tuner:
             # we have 2 pictures to show
             cv2.namedWindow(self.downstream_window,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
 
+        # updated later when the user provides a carousel
+        self.cc = None
         return
 
     def __del__(self):
@@ -323,14 +110,23 @@ class Tuner:
         if not self.__cb_downstream is None:
             cv2.destroyWindow(self.downstream_window)
         pass
+    def button_clicked(self, state, other):
+        return
 
+    def __add_trackbar(self, name, t):
+        self.__params[name] = t
+        # create an attribute with the same name as the tracked property
+        setattr(Tuner ,name, tb_prop(t.get_value))
+
+        return
     def track(self, name, max, min=None, default=None):
         '''
         Add an int parameter to be tuned.
         Please see the readme for details.
         '''
-        tb = Tuner.__tb(self,name,min=min,max=max,default=default, cb_on_update=self.__update_arg)
-        self.__params[name] = tb
+        t = tb(self,name,min=min,max=max,default=default, cb_on_update=self.__update_arg)
+        self.__add_trackbar(name,t)
+
         return
     def track_boolean(self, name, default=False):
         '''
@@ -338,8 +134,8 @@ class Tuner:
         Please see the readme for details.
         '''
         default = False if default is None else default
-        tb = Tuner.__tb_boolean(self,name,default=default, cb_on_update=self.__update_arg)
-        self.__params[name] = tb
+        t = tb_boolean(self,name,default=default, cb_on_update=self.__update_arg)
+        self.__add_trackbar(name,t)
         return
     def track_list(self, name, data_list, *, default_item=None, display_list=None, return_index=True):
         '''
@@ -351,14 +147,14 @@ class Tuner:
         '''
 
         if not data_list is None:
-            tb = Tuner.__tb_list(self,name
-                                    ,data_list=data_list
-                                    ,display_list = display_list
-                                    ,default_item=default_item
-                                    ,cb_on_update=self.__update_arg
-                                    ,return_index=return_index
-                                    )
-            self.__params[name] = tb
+            t = tb_list(self,name
+                            ,data_list=data_list
+                            ,display_list = display_list
+                            ,default_item=default_item
+                            ,cb_on_update=self.__update_arg
+                            ,return_index=return_index
+                            )
+        self.__add_trackbar(name,t)
         return
     def track_dict(self, name, dict_like, *, default_item_key=None, return_key=True):
         '''
@@ -369,13 +165,13 @@ class Tuner:
         '''
 
         if not dict_like is None:
-            tb = Tuner.__tb_dict(self,name
-                                    ,dict_like=dict_like
-                                    ,default_item_key=default_item_key
-                                    ,return_key=return_key
-                                    ,cb_on_update=self.__update_arg
-                                    )
-            self.__params[name] = tb
+            t = tb_dict(self,name
+                            ,dict_like=dict_like
+                            ,default_item_key=default_item_key
+                            ,return_key=return_key
+                            ,cb_on_update=self.__update_arg
+                            )
+            self.__add_trackbar(name,t)
         return
 
     def get_func_name(self, cb):
@@ -415,20 +211,21 @@ class Tuner:
             pass
 
     def __refresh(self, headless=False):
+        # invokes must ultimately come through this chokepoint
         def safe_invoke(cb, name):
             try:
                 if not cb is None:
-                    # todo - check if the expected args all have safe defaults
-                    # otherwise it will blow up quite easily (expected 4, got 1)
+                    # todo - check if the expected args all have
+                    # defaults, otherwise things will blow up
+                    # quite easily (expected 4, got 1)
                     res = cb(tuner=self)
                     self.__set_result(res,overwrite=False)
             except Exception as error:
                 # do not let downstream errors kill us
                 # eventually we'll have an appropriate gui
                 # for this
-                self.status = f"An error occurred executing {name}. Check results."
-                self.errors = repr(error)
-                print(error)
+                self.status = f"Error executing {name}: {error}"
+                self.cc.invocation_error = error
 
         def show_main():
             self.__calling_main = True
@@ -452,16 +249,28 @@ class Tuner:
                 img = self.__insert_thumbnail(self.downstream_image, self.__thumbnail_downstream)
                 cv2.imshow(self.downstream_window, img)
             return
+        # make sure we have an up to date
+        # copy of user args
+        try:
+            self.gather_args()
+            self.cc.before_invoke()
 
-        show_main()
-        show_downstream()
-        self.__show_results(self.results)
+            show_main()
+            show_downstream()
+            self.__show_results(self.results)
+
+        except:
+            pass
+        finally:
+            self.cc.after_invoke()
+
+
 
         return
     def __show_results(self, res):
         # TBD
         return
-    def __show(self, img, cc:CarouselContext, delay=0, headless=False):
+    def __show(self, img, delay=0, headless=False):
         '''
         This is the original show - paths from the public show interface like begin() and review() come here.
         img:        the image to work with
@@ -469,10 +278,11 @@ class Tuner:
         delay:      only set in review/grid_search mode; 0 means  - *indefinite*
         headless:   only set in review/grid_search mode - supress display
         '''
+        # can only "show" in the context of some carousel
+        if self.cc is None: return True
         cancel = False
         # this may be None and that is OK
         self.__unprocessed_image = img
-        self.__invocation_errors = {}
         self.__results = {}
 
         # the first step in the message pump
@@ -484,20 +294,18 @@ class Tuner:
             k = cv2.waitKey(delay) #& 0xFF
             if k == 120:
                 # F2 pressed = save image
-                cc.save_image()
+                self.cc.save_image()
                 # don't exit just yet - clock starts over
                 continue
             elif k == 99:
                 # F3 - dump params
-                cc.capture_result(True)
+                self.cc.capture_result(True)
                 # self.save_results()
                 # don't exit just yet - clock starts over
                 continue
             elif k in self.tag_codes:
                 # tag the current result - stays in here
-                self.tag_result(k)
-                # cc should grab this result for saving later
-                cc.capture_result(True)
+                self.cc.tag(k)
                 continue
             else:
                 # any other key - done with this image
@@ -505,13 +313,7 @@ class Tuner:
                 cancel = (k==27)
                 break
         return not cancel
-    def tag_result(self, obs:Tags):
-        tag = Tags(obs).name
-        if not self.__results is None:
-            if not "tags" in self.__results: self.__results["tags"] = {}
-            self.__results["tags"][tag] = True
 
-        return
     def get_ranges(self):
         '''
         Returns a list containing the range of each of the trackbars in this tuner.
@@ -546,32 +348,26 @@ class Tuner:
                             -- out of tuning the current image only (False), or
                             -- out of the entire carousel as well (True)
         '''
-        with Tuner.CarouselContext(self, carousel, headless) as car:
-            iterations = 0
+        with CarouselContext(self, carousel, headless) as cc:
             # the ranges that our trackbars have
             ranges, keys = self.get_ranges()
             # ready to iterate
-            for img in car:
+            for img in cc:
                 # Bang on this image.
                 user_cancelled = False
-                # Prod iterates over the complete set of values
-                #  that this constellation of trackbars could have.
+                # cart(esian) iterates over the complete set of values
+                # that this constellation of trackbars could have.
                 # It needs to be rebuilt for each file, as
                 # an iteration will exhaust it.
-                prod = it.product(*ranges)
-                for t in prod:
+                cart = it.product(*ranges)
+                for t in cart:
                     # Update the trackbar values.
                     self.set_values_headless(t, keys)
                     # Invoke target
-                    iterations += 1
-                    user_cancelled = not self.__show(img,headless=headless,delay=delay,cc=car)
-                    # stash results if headless, otherwise the user will do that with F3
-                    if headless: car.capture_result()
+                    user_cancelled = not self.__show(img,headless=headless,delay=delay)
                     if user_cancelled : break #out of this image
                 # done with the last image
                 if user_cancelled and esc_cancels_carousel: break
-            # record how many iterations before you exit the context
-            car.iterations = iterations
 
         return
 
@@ -588,10 +384,11 @@ class Tuner:
                 -- A list of fully qualified file names, each of which will be processed
         delay   : miliseconds to hold the display
         '''
-        with Tuner.CarouselContext(self, carousel, False) as car:
-            for img in car:
-                ret  = self.__show(img,delay=delay,cc=car)
+        with CarouselContext(self, carousel, False) as cc:
+            for img in cc:
+                ret  = self.__show(img,delay=delay)
                 if not ret: break
+
 
         return ret
 
@@ -602,9 +399,9 @@ class Tuner:
                 When a list, each image is processed until interruped via the keyboard.
                 Hit Esc to cancel the whole stack.
         '''
-        with Tuner.CarouselContext(self, carousel, False) as car:
-            for img in car:
-                ret  = self.__show(img,delay=0,cc=car)
+        with CarouselContext(self, carousel, False) as cc:
+            for img in cc:
+                ret  = self.__show(img,delay=0)
                 if not ret: break
 
         return ret
@@ -633,15 +430,7 @@ class Tuner:
             cv2.setWindowTitle(self.downstream_window, "Downstream: " + title )
 
         return
-
-    def __update_arg(self, key, val):
-        self.__args[key] = val
-        self.__refresh()
-    @property
-    def args(self):
-        '''
-        A dictionary containing all the tuned args, and their current settings.
-        '''
+    def gather_args(self):
         # this looks like a slower way of doing things,
         # especially given the __update_arg just up above;
         # but it actually avoids a whole lot of refresh
@@ -650,8 +439,16 @@ class Tuner:
         # Also, don't use a comprehension to replace - just update
         for key in self.__params:
             self.__args[key] =  self.__params[key].get_value()
-
-        return self.__args
+        return
+    def __update_arg(self, key, val):
+        self.__args[key] = val
+        self.__refresh()
+    @property
+    def args(self):
+        '''
+        A dictionary containing all the tuned args, and their current settings.
+        '''
+        return copy.deepcopy(self.__args)
 
     @property
     def main_image(self):
@@ -671,12 +468,10 @@ class Tuner:
     @property
     def results(self):
         '''
-        Returns json which includes the image title, the current state of tuned args, the results set by main, and the results set by downstream.
+        Returns results json which includes the results set by main, as well as by downstream.
         '''
         # return the combined results, and add args in there for good measure
         j = copy.deepcopy(self.__results)
-        # j["image_title"] = self.__img_title
-        j["errors"] = copy.deepcopy(self.errors)
         return j
 
     @results.setter
@@ -684,41 +479,38 @@ class Tuner:
         self.__set_result(val)
 
     def __set_result(self, res, overwrite=True):
+        def format_result():
+            ret = None
+            if type(res) is tuple:
+                # Results are tupled together
+                # convert to array - weed out types
+                # incompatible with json.dumps
+                ret = []
+                for obj in res:
+                    if type(obj) is np.ndarray:
+                        # not using that
+                        pass
+                    else:
+                        ret.append(obj)
+            elif type(res) is np.ndarray:
+                ret = None
+            else:
+                ret = res
+            return ret
 
+        # get a result that we can safely stash
+        res = format_result()
         if self.__calling_main:
             if overwrite or (not "main" in self.__results):
-                # either called from userland, or no results
-                # AND this is the default return capture
-
-                # let's track the args associate with these results as well
-                self.__results["args"] = self.args
-                self.__results["main"] = res
-                self.__results["tags"] = {}
-                if not overwrite:
-                    self.__results["return_capture"] = True
+                # either called from userland, or
+                # no results AND this is the default return capture
+                self.__results["main"] = format_result()
+                self.__results["return_capture"] = not overwrite
         else:
             # the object setting this is the downstream func
             if overwrite or (not "downstream" in self.__results):
                 self.__results["downstream"] = res
-                if not overwrite:
-                    self.__results["return_capture"] = True
-
-    @property
-    def errors(self):
-        '''
-        Returns json containing errors in execution.
-        '''
-        return self.__invocation_errors
-
-    @errors.setter
-    def errors(self, val):
-
-        if self.__calling_main:
-            self.__invocation_errors["main"] = val
-        else:
-            # the object setting this is the downstream func
-            self.__invocation_errors["downstream"] = val
-
+                self.__results["return_capture"] = not overwrite
 
     @property
     def image(self):
