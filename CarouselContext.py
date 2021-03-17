@@ -5,9 +5,11 @@ import copy
 import os
 import tempfile
 import sys
+import traceback
 import json
 import time
-# import datetime
+
+
 
 from constants import *
 import hashlib as hl
@@ -171,10 +173,18 @@ class CarouselContext:
 
         return
 
-    def capture_error(self, error, invoking_main=True):
-        # TODO: some day use this invoking_main thing
+    @property
+    def invocation_error(self):
+        return
+
+    @invocation_error.setter
+    def invocation_error(self, error):
         self.invocation["errored"] = True
-        self.invocation["error"] = repr(error)
+        l = traceback.format_tb(sys.exc_info()[2])
+        l.pop(0)
+        l.insert(0,str(error))
+        self.invocation["error"] = l
+        # self.invocation["error"] = error
 
 
     def capture_result(self, force=False):

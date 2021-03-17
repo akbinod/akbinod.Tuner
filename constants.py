@@ -4,7 +4,7 @@ class Tags(Enum):
     '''
     These are keycodes (macOS). The following are available for users to map.
     Just change this Enum - the rest is automatic.
-    F1 - 122,   available
+    F1 - 122,   in use by Tuner, cannot be remapped
     F2          in use by Tuner, cannot be remapped
     F3          in use by Tuner, cannot be remapped
     F4 - 118    available

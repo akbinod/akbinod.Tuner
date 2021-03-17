@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import copy
 import os
+import sys
 
 
 import inspect
@@ -54,8 +55,8 @@ class Tuner:
         self.tag_codes = [i.value for i in Tags]
         self.tag_names = [i.name for i in Tags]
         # tag_names = [i.name for i in Tags]
-        function_keys ={122:"F1", 118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
-        key_map = "F2:save img F3:save res | Tag & Save ["
+        function_keys ={118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
+        key_map = "F1: grid srch F2:save img F3:save args | Tag & Save ["
         for k in self.tag_codes:
             fk = function_keys[k]
             name = Tags(k).name
@@ -219,13 +220,14 @@ class Tuner:
                     # defaults, otherwise things will blow up
                     # quite easily (expected 4, got 1)
                     res = cb(tuner=self)
-                    self.__set_result(res,overwrite=False)
+                    # TODO: debug
+                    # self.__set_result(res,overwrite=False)
             except Exception as error:
                 # do not let downstream errors kill us
                 # eventually we'll have an appropriate gui
                 # for this
                 self.status = f"Error executing {name}: {error}"
-                self.cc.invocation_error = error
+                self.cc.invocation_error = str(error)
 
         def show_main():
             self.__calling_main = True
@@ -292,6 +294,12 @@ class Tuner:
             # Wait forever (when delay == 0) for a keypress
             # This is skipped when in headless mode.
             k = cv2.waitKey(delay) #& 0xFF
+            # need to figure out how to reset cc
+            # before opening this back up
+            # if k == 122:
+            #     # F1 pressed
+            #     self.grid_search(None)
+            #     continue
             if k == 120:
                 # F2 pressed = save image
                 self.cc.save_image()
@@ -336,7 +344,7 @@ class Tuner:
             self.__params[keys[i]].set_value(t[i],headless_op=True)
 
         return
-    def grid_search(self, carousel, headless=False,delay=2_000, esc_cancels_carousel = False):
+    def grid_search(self, carousel, headless=False,delay=500, esc_cancels_carousel = False):
         '''
         Conducts a grid search across the trackbar configuration, and saves
         aggregated results to file. When not in headless mode, you can
@@ -348,7 +356,13 @@ class Tuner:
                             -- out of tuning the current image only (False), or
                             -- out of the entire carousel as well (True)
         '''
-        with CarouselContext(self, carousel, headless) as cc:
+        if carousel is None:
+            # use the current context
+            cc = self.cc
+        else:
+            # create a new one
+            cc = CarouselContext(self, carousel, headless)
+        with cc:
             # the ranges that our trackbars have
             ranges, keys = self.get_ranges()
             # ready to iterate
@@ -471,6 +485,7 @@ class Tuner:
         Returns results json which includes the results set by main, as well as by downstream.
         '''
         # return the combined results, and add args in there for good measure
+        if self.__results is None: self.results = {}
         j = copy.deepcopy(self.__results)
         return j
 
@@ -492,8 +507,11 @@ class Tuner:
                         pass
                     else:
                         ret.append(obj)
+                # ret = {"list":ret}
             elif type(res) is np.ndarray:
                 ret = None
+            # elif type(res) is dict:
+            #     ret = res
             else:
                 ret = res
             return ret
