@@ -419,6 +419,34 @@ class Tuner:
                 if not ret: break
 
         return ret
+    def stitch_images(self, img_list):
+        if len(img_list) == 0: return
+
+        ret = None
+        padding = 5
+        ret = img_list.pop(0)
+        h = ret.shape[0]
+
+        num_colors = 1 if ret.ndim == 2 else 3
+        border = np.ones((h, padding, num_colors))
+
+        while len(img_list) > 0:
+            this_img = img_list.pop(0)
+            sh = this_img.shape
+            t = np.zeros(shape=(h,sh[1]))
+            t[0:sh[0],0:sh[1]] = this_img
+            # add border
+            ret = np.hstack((
+                            # the last image
+                            ret
+                            # plus a border
+                            , border
+                            # plus the current image
+                            , t
+                            )
+                            )
+
+        return ret
 
     @property
     def image_title(self):
