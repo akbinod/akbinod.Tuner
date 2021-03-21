@@ -8,6 +8,7 @@ class tb_prop:
         if instance is None:
             return self
         else:
+            # TODO: shouldn't we pass it the instance?
             return self.get_val_method()
     def __set__(self, instance, value):
         return

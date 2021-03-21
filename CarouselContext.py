@@ -8,8 +8,7 @@ import sys
 import traceback
 import json
 import time
-
-
+from PropertyBag import PropertyBag
 
 from constants import *
 import hashlib as hl
@@ -39,21 +38,20 @@ class CarouselContext:
         self.title = ""
         self.save_all = tuner.save_all
 
-        # How many iterations on
-        # the current image from the carousel
-        self.image_iter = 0
+        # How many invocations on the current carousel
+        self.invocation_counter = 0
 
         # gets reset in the begore_invoke
         # here just to register the var with
         # compile tools
         self.invocation = None
-        self.results = {}
+        self.carousel_results = PropertyBag()
         # placeholders
-        self.results["ts"] = time.strftime('%Y-%m-%d %H:%M', time.localtime())
-        self.results["headless"] = headless
-        self.results["duration"] = ""
-        # probably only makes sense in the context of a grid search
-        self.results["iterations"] = 0
+        self.carousel_results.ts = time.strftime('%Y-%m-%d %H:%M', time.localtime())
+        self.carousel_results.headless = headless
+        self.carousel_results.duration = ""
+        self.carousel_results.invocations = 0
+
         # used when saving args
         self.tag_map = {}
         for tag in self.tuner.tag_names:
@@ -64,10 +62,11 @@ class CarouselContext:
 
     def __enter__(self):
         self.tuner.cc = self
-        self.image_iter = 0
+        self.invocation_counter = 0
 
         # weird way of doing it, but OK
         return self
+
     def __exit__(self, *args):
         try:
             # figure duration
@@ -76,13 +75,12 @@ class CarouselContext:
             outp = f"{time.strftime('%H:%M:%S', t2 )}"
             if t2.tm_sec <= 1 or (proc_time2 - self.proc_time1) < 1:
                 outp += f"\t[process_time: {round(proc_time2 - self.proc_time1,5)}]"
-            self.results["duration"] = outp
+            self.carousel_results.duration = outp
             # set a count of how many iterations happened for
             # this image in the carousel
-            self.results["iterations"] = self.image_iter
-            # this one may be redundant - but if hte user
-            # cancels out - this is the only place to capture
-            self.capture_result()
+            self.carousel_results.invocations = self.invocation_counter
+
+            self.after_context_change()
             self.save_results()
         except:
             pass
@@ -90,6 +88,24 @@ class CarouselContext:
             # not traversing a carousel anymore
             self.tuner.cc = None
         return
+
+    def after_context_change(self):
+        # event - finished showing an image
+        # - before moving on to the next.
+
+        # # This capture seems redundant since
+        # # we do a capture before each new invoke.
+        # # However, when a user just looks at the
+        # # first result, tags it, and forwards the
+        # # carousel, we need to capture that tagging
+        # self.__capture_result()
+
+        return
+
+    def before_context_change():
+        # event - before showing an image
+        return
+
     def __iter__(self):
         '''
         Generator. Iterate over the user supplied carousel.
@@ -108,7 +124,7 @@ class CarouselContext:
             self.tuner.context_files = []
 
             yield img
-            self.capture_result()
+            self.after_image_iteration()
         else:
             for index, obj in enumerate(self.files):
                 if type(obj) is str:
@@ -128,7 +144,8 @@ class CarouselContext:
                 # about to move to a new image - save off the last lot
 
                 yield img
-                self.capture_result()
+                self.after_context_change()
+
             # done iterating the images
         return
 
@@ -137,33 +154,77 @@ class CarouselContext:
         # set of params, save the last set if
         # we ought to. The user may have tagged
         # stuff after viewing it, etc, etc
-        self.capture_result()
+
+        def save_last_invocation():
+            # we keep track of results, args, tags etc
+            # at the invocation level but only move those
+            # into the record at the file/image/title level
+            # when certain conditions are met
+
+            if self.invocation is None: return
+            save = False
+            # user requested save,
+            # or we are configured to save all
+            # or this carousel is running headless (e.g. in a long grid search)
+            save = self.invocation.force_save or self.save_all or self.headless
+            # or we have an error
+            save = save or self.invocation.errored
+            # or any of the tags got set on this invocation
+            save = save or (len([tag for tag in self.tuner.tag_names if self.invocation[tag] == True]) > 0)
+
+            if save:
+                # save this invocation
+                # in the file hive,
+                # keyed by the args hash
+                hive = None
+                if self.title in self.carousel_results:
+                    hive = self.carousel_results[self.title]
+                else:
+                    # make a hive for this result
+                    hive = self.carousel_results[self.title] = {}
+                # get rid of unseemly attributes
+                del(self.invocation.force_save)
+                hive[self.arg_hash] = self.invocation
+
+            return save
+
+        def init_next_invocation():
+            # initialize a complete invocation record
+            # with default values here
+            self.invocation = PropertyBag()
+            # flags
+            # tags go here - all set to false initially
+            self.invocation.update(self.tag_map)
+            # whether there was an error - for convenience in querying
+            self.invocation.errored = False
+            # errors go here
+            self.invocation.error = ""
+            # args, and results last - just a visual thing
+            self.invocation.args = self.tuner.args
+            self.invocation.results = PropertyBag()
+            self.invocation.force_save = False
+
+            return
+
+        # # get the results from the UI again
+        # self.__capture_result()
+        save_last_invocation()
+        init_next_invocation()
 
         # this is the current set of args
         a = self.tuner.args
-        # hash only user args
         inv = json.dumps(a)
         a = hl.md5(inv.encode('utf-8'))
         self.arg_hash = a.hexdigest()
 
-        self.invocation = {}
-        # flags
-        # tags go here - all set to false initially
-        self.invocation.update(self.tag_map)
-        # whether there was an error - for convenience in querying
-        self.invocation["errored"] = False
-        # errors go here
-        self.invocation["error"] = ""
-        # args, and results last - just a visual thing
-        self.invocation["args"] = self.tuner.args
-        self.invocation["results"] = {}
-
-        # for saving later
-        self.image_iter += 1
         return
+
     def after_invoke(self):
         # important safety tip - do not clear out the last invocation record
         # results from tuner will be grabbed if we need to save them
+        # for saving later
+        self.invocation_counter += 1
+
         return
 
     def tag(self, obs:Tags):
@@ -173,54 +234,45 @@ class CarouselContext:
 
         return
 
-    @property
-    def invocation_error(self):
-        return
+    # @property
+    # def result(self):
+    #     return self.invocation.result
 
-    @invocation_error.setter
-    def invocation_error(self, error):
-        self.invocation["errored"] = True
-        l = traceback.format_tb(sys.exc_info()[2])
-        l.pop(0)
-        l.insert(0,str(error))
-        self.invocation["error"] = l
-        # self.invocation["error"] = error
+    # @result.setter
+    # def result(self, val):
+    #     # this is a call from userland
+    #     self.__capture_result(force=True, val=val)
+    #     return
 
-
-    def capture_result(self, force=False):
+    def capture_result(self, val, *, force=False):
 
         # return if nothing initialized yet
         if self.invocation is None: return
-
-        # user requested save,
-        # or we are configured to save all
-        # or this carousel is running headless (e.g. in a long grid search)
-        save = force or self.save_all or self.headless
-        # or we have an error
-        save = save or ("errored" in self.invocation and self.invocation["errored"] == True)
-        # or this invocation got tagged by the user
-        save = save or (len([tag for tag in self.tuner.tag_names if self.invocation[tag] == True]) > 0)
-
-
-        if save:
-            hive = None
-            # we're getting a copy from tuner
-            # - no need to make another
-            self.invocation["results"] = self.tuner.results
-
-            if self.title in self.results:
-                hive = self.results[self.title]
-            else:
-                # make a hive for this result
-                hive = self.results[self.title] = {}
-
-            # save this invocation
-            # in the file hive,
-            # keyed by the args hash
-            hive[self.arg_hash] = self.invocation
-
+        # we're getting a copy from tuner
+        # - no need to make another
+        if force:self.invocation.force_save = True
+        if val is None: val = self.tuner.results
+        self.invocation.results = val
 
         return
+
+    def capture_error(self, func_name):
+        self.invocation.errored = True
+        # format the error string and the call stack
+        error = f"{sys.exc_info()[0]} - {sys.exc_info()[1]}"
+        l = traceback.format_tb(sys.exc_info()[2])
+        # we're always at the top, so get rid of that
+        l.pop(0)
+        # I like to see the most recent call up at the top
+        # - not scroll to the bottom for it
+        l = l.reverse()
+        # put in the nice error message
+        l.insert(0,str(error))
+        self.invocation.error = l
+
+        # finally, set the gui status display
+        self.tuner.status = f"Error executing {func_name}: {error}"
+
     def get_temp_file(self, suffix=".png"):
         '''
         Creates a temporary file with the specified suffix.
@@ -259,22 +311,18 @@ class CarouselContext:
             full_path_name = os.path.join(self.tuner.wip_dir, prefix + suffix)
             full_path_name = os.path.realpath(full_path_name)
         return full_path_name
+
     def save_results(self):
         '''
         Saves the current set of results to a file following name conventions.
-        Use capture_results() to add individual results to the set.
+        Use capture to add individual results to the set.
         '''
         ret = True
-        # j = self.results if result is None else result
-        j = self.results
+
         fname = self.get_temp_file(suffix=".json")
         try:
             with open(fname,"w") as f:
-                try:
-                    f.write(json.dumps(j))
-                except:
-                    # could not get a formatted output
-                    f.write(str(j))
+                f.write(str(self.carousel_results))
                 f.write("\n")
         except:
             # dont let this screw anything else up
@@ -282,6 +330,7 @@ class CarouselContext:
             ret = False
 
         return ret
+
     def save_image(self):
         '''
         Saves the current image to a temp file in

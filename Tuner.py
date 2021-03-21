@@ -1,3 +1,4 @@
+from PropertyBag import PropertyBag
 import numpy as np
 import cv2
 import copy
@@ -67,7 +68,7 @@ class Tuner:
         self.__unprocessed_image = None
         self.__args = {}
         self.__params = {}
-        self.__results = {}
+        self.__results = None
         # Holds path names to images needed by the client
         # who may want to open them in special ways with imread
         self.context_files = []
@@ -113,6 +114,9 @@ class Tuner:
         pass
     def button_clicked(self, state, other):
         return
+
+    def __contains__(self, key):
+        return key in self.args
 
     def __add_trackbar(self, name, t):
         self.__params[name] = t
@@ -220,16 +224,19 @@ class Tuner:
                     # defaults, otherwise things will blow up
                     # quite easily (expected 4, got 1)
                     res = cb(tuner=self)
-                    # TODO: debug
-                    # self.__set_result(res,overwrite=False)
+                    # At this point, the target is done.
+                    # Use whatever returns we have captured.
+                    self.__set_result(res,is_return=True)
             except Exception as error:
                 # do not let downstream errors kill us
                 # eventually we'll have an appropriate gui
-                # for this
-                self.status = f"Error executing {name}: {error}"
-                self.cc.invocation_error = str(error)
+                # for showing this error
+                self.cc.capture_error()
+            finally:
+                # Let the CC know it should grab those results
+                self.cc.capture_result(self.results)
 
-        def show_main():
+        def invoke_main():
             self.__calling_main = True
             # call the user proc that does the calc/tuning
             safe_invoke(self.__cb_main, self.__window_name)
@@ -241,7 +248,8 @@ class Tuner:
                 # show the main image here
                 cv2.imshow(self.window, img)
             return
-        def show_downstream():
+
+        def invoke_downstream():
             #  call the user proc that does the secondary processing/application
             self.__calling_main = False
             safe_invoke(self.__cb_downstream, self.downstream_window)
@@ -251,22 +259,27 @@ class Tuner:
                 img = self.__insert_thumbnail(self.downstream_image, self.__thumbnail_downstream)
                 cv2.imshow(self.downstream_window, img)
             return
-        # make sure we have an up to date
-        # copy of user args
+
         try:
+            # set up a new results object
+            self.__results = PropertyBag()
+            # get an up to date copy of user args
             self.gather_args()
+
+            # now let the context grab what it may
             self.cc.before_invoke()
 
-            show_main()
-            show_downstream()
+            # make the invocations
+            invoke_main()
+            invoke_downstream()
+            # show results if you can
             self.__show_results(self.results)
 
         except:
             pass
         finally:
+            # last thing
             self.cc.after_invoke()
-
-
 
         return
     def __show_results(self, res):
@@ -285,7 +298,7 @@ class Tuner:
         cancel = False
         # this may be None and that is OK
         self.__unprocessed_image = img
-        self.__results = {}
+        self.__results = None
 
         # the first step in the message pump
         self.__refresh(headless=headless)
@@ -306,8 +319,8 @@ class Tuner:
                 # don't exit just yet - clock starts over
                 continue
             elif k == 99:
-                # F3 - dump params
-                self.cc.capture_result(True)
+                # F3 - record current results
+                self.cc.capture_result(None, force=True)
                 # self.save_results()
                 # don't exit just yet - clock starts over
                 continue
@@ -332,6 +345,7 @@ class Tuner:
         keys = list(self.__params.keys())
         ranges = [r for r in [self.__params[key].range() for key in keys]]
         return ranges, keys
+
     def set_values_headless(self, t, keys):
         '''
         t:      tuple or values
@@ -344,6 +358,7 @@ class Tuner:
             self.__params[keys[i]].set_value(t[i],headless_op=True)
 
         return
+
     def grid_search(self, carousel, headless=False,delay=500, esc_cancels_carousel = False):
         '''
         Conducts a grid search across the trackbar configuration, and saves
@@ -419,6 +434,7 @@ class Tuner:
                 if not ret: break
 
         return ret
+
     def stitch_images(self, img_list):
         if len(img_list) == 0: return
 
@@ -472,6 +488,7 @@ class Tuner:
             cv2.setWindowTitle(self.downstream_window, "Downstream: " + title )
 
         return
+
     def gather_args(self):
         # this looks like a slower way of doing things,
         # especially given the __update_arg just up above;
@@ -482,9 +499,11 @@ class Tuner:
         for key in self.__params:
             self.__args[key] =  self.__params[key].get_value()
         return
+
     def __update_arg(self, key, val):
         self.__args[key] = val
         self.__refresh()
+
     @property
     def args(self):
         '''
@@ -512,16 +531,22 @@ class Tuner:
         '''
         Returns results json which includes the results set by main, as well as by downstream.
         '''
-        # return the combined results, and add args in there for good measure
-        if self.__results is None: self.results = {}
-        j = copy.deepcopy(self.__results)
-        return j
+
+        return self.__results
 
     @results.setter
     def results(self, val):
-        self.__set_result(val)
+        '''
+        Called from userland code to save various results
+        '''
+        self.__set_result(val,is_return=False)
 
-    def __set_result(self, res, overwrite=True):
+    def __set_result(self, res, *, is_return:bool=False):
+        '''
+        Calls from userland to the 'results' property
+        are forwarded here. This is also called directly
+        by Tuner to save return values with overwrite set to False.
+        '''
         def format_result():
             ret = None
             if type(res) is tuple:
@@ -546,18 +571,21 @@ class Tuner:
 
         # get a result that we can safely stash
         res = format_result()
+
+
+
         if self.__calling_main:
-            if overwrite or (not "main" in self.__results):
-                # either called from userland, or
-                # no results AND this is the default return capture
-                self.__results["main"] = format_result()
-                self.__results["return_capture"] = not overwrite
+            if (not "main" in self.__results) or not is_return :
+                # either forwarded call from userland, or
+                # default result capture and no results saved yet
+                # Prevents user results from being overwrittwen
+                self.__results.main = res
+                if is_return: self.__results.return_capture = True
         else:
             # the object setting this is the downstream func
-            if overwrite or (not "downstream" in self.__results):
-                self.__results["downstream"] = res
-                self.__results["return_capture"] = not overwrite
-
+            if (not "downstream" in self.__results) or not is_return:
+                self.__results.downstream = res
+                if is_return: self.__results.return_capture = True
     @property
     def image(self):
         '''
@@ -595,7 +623,6 @@ class Tuner:
             return self.__thumbnail_main
         else:
             return self.__thumbnail_downstream
-
 
     @thumbnail.setter
     def thumbnail(self,val):
