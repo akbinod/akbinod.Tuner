@@ -6,3 +6,4 @@ from Tuner import Tuner
 from PropertyBag import PropertyBag
 from constants import SaveStyle
 from constants import Tags
+from TunerConfig import TunerConfig

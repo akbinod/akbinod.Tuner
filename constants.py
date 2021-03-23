@@ -1,4 +1,14 @@
 from enum import Enum, auto, Flag
+import cv2
+
+# statics
+HIGHLIGHT_COLOR = (173,255,47)
+HIGHLIGHT_THICKNESS_LIGHT = 1
+HIGHLIGHT_THICKNESS_HEAVY = 2
+PUT_TEXT_FONT = cv2.FONT_HERSHEY_PLAIN
+PUT_TEXT_SMALL = 0.7
+PUT_TEXT_NORMAL = 1.0
+PUT_TEXT_HEAVY = 2.0
 
 class Tags(Enum):
     '''
@@ -27,3 +37,4 @@ class SaveStyle(Flag):
     tagged = auto()
     newfile = auto()
     overwrite = auto()
+

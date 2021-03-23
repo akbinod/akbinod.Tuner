@@ -13,9 +13,10 @@ class PropertyBag(dict):
         if name in self: del(self[name])
 
     def __getattr__(self, name: str):
-        ret = None
-
-        if name in self: ret = self[name]
+        if name in self:
+            return self[name]
+        else:
+            return super().__getattr__(name)
         return ret
 
     def __setattr__(self, name: str, value) -> None:

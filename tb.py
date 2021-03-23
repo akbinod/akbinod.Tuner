@@ -1,33 +1,23 @@
 import cv2
 
-class tb_prop:
-
-    def __init__(self, get_val_method):
-        self.get_val_method = get_val_method
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        else:
-            # TODO: shouldn't we pass it the instance?
-            return self.get_val_method()
-    def __set__(self, instance, value):
-        return
-
 class tb:
-    def __init__(self, tuner, name, *, max, min, default, cb_on_update=None) -> None:
+    '''
+    Specific to openCV's highGUI implementation.
+    '''
+    def __init__(self, ui, name, *, max, min, default, cb_on_update=None) -> None:
         if max is None: raise ValueError("Must have 'max' to define a regular trackbar.")
-        self.tuner = tuner
+        self.ui = ui
         self.on_update = cb_on_update
         self.name = name
         self.max = max
         self.min = 0 if min is None else (min if min >= 0 else 0)
         self.default = self.min if default is None else (self.min if default <= self.min or default > self.max else default)
         self._value = self.default
-        self.trackbar = cv2.createTrackbar(name, tuner.window
+        self.trackbar = cv2.createTrackbar(name, ui.window
                                             ,self.default
                                             ,self.max
                                             ,self.set_value)
-        cv2.setTrackbarMin(self.name, self.tuner.window,self.min)
+        cv2.setTrackbarMin(self.name, self.ui.window,self.min)
         # do not trigger the event - things are just getting set up
         # the "begin()" and other methods will reach out for the args anyway
         self.set_value(self.default,True)
@@ -35,6 +25,7 @@ class tb:
     def spec(self):
         # these must be ints, not floats
         return int(self.max), int(self.default)
+
     def range(self):
         # if the user wants to see a certain min, why default to 0
         # range will not return the 'max' value
@@ -53,7 +44,7 @@ class tb:
         # We'll interpret (e.g. nulls) when get_value is accessed.
         self._value = val
         # show the new parameter for 10 seconds
-        self.tuner.status = self.name + ":" + str(self.get_display_value())
+        self.ui.on_status_changed(self.name + ":" + str(self.get_display_value()))
         if headless_op:
             # This call is from code, not from an event generated
             # by a click. So update the UI safely
@@ -64,7 +55,7 @@ class tb:
                 self.on_update = None
                 # the following line sometimes triggers a callback from Qt
                 # so this
-                cv2.setTrackbarPos(self.name, self.tuner.window,val)
+                cv2.setTrackbarPos(self.name, self.ui.window,val)
             except:
                 pass
             finally:
@@ -103,20 +94,22 @@ class tb:
             self._value = i
             yield i
         return
+
 class tb_boolean(tb):
-    def __init__(self, tuner, name, *, default=False, cb_on_update=None) -> None:
+    def __init__(self, ui, name, *, default=False, cb_on_update=None) -> None:
         '''
         Represents True/False values.
         '''
         default=0 if default == False else 1
-        super().__init__(tuner, name,min=0,max=1,default=default,cb_on_update=cb_on_update)
+        super().__init__(ui, name,min=0,max=1,default=default,cb_on_update=cb_on_update)
 
     def get_value(self):
         ret = super().get_value()
         ret = False if ret <= 0 else True
         return ret
+
 class tb_list(tb):
-    def __init__(self, tuner, name, *, data_list, display_list=None, default_item=None, return_index=True, cb_on_update=None) -> None:
+    def __init__(self, ui, name, *, data_list, display_list=None, default_item=None, return_index=True, cb_on_update=None) -> None:
         '''
         Represents a list of values. The trackbar is used to pick the list index
         and the returned value is the corresponding item from the list.
@@ -143,7 +136,7 @@ class tb_list(tb):
                 raise ValueError("Display list must match data list in length.")
 
         self.__return_index = return_index
-        super().__init__(tuner, name, max=max, min=0, default=default
+        super().__init__(ui, name, max=max, min=0, default=default
                         , cb_on_update=cb_on_update)
 
     def get_value(self):
@@ -160,8 +153,9 @@ class tb_list(tb):
             ret = super().get_value()
             ret = self.__display_list[ret]
         return ret
+
 class tb_dict(tb_list):
-    def __init__(self, tuner, name, dict_like, *, default_item_key, return_key=True, cb_on_update) -> None:
+    def __init__(self, ui, name, dict_like, *, default_item_key, return_key=True, cb_on_update) -> None:
         '''
         Like a list tracker. Keys become data items, and associated data become display items.
         When return_key is True: you get the key back
@@ -186,7 +180,7 @@ class tb_dict(tb_list):
             raise ValueError("Default item not found in dict_like.")
 
         # given the setup in init, we want the list index back
-        super().__init__(tuner, name
+        super().__init__(ui, name
                             , data_list=data_list
                             , display_list=display_list
                             , default_item=default_item_key

@@ -29,9 +29,7 @@ class TunedFunction(DecoratorBase):
 		# Called by the tuner - this is where
 		# all the calls from the tuner are going to come
 		# while the original call continues to be blocked
-		# below. This function will keep being called by
-		# Tuner until the user exits.
-		# args have been set, time to process
+		# below, until the user exits.
 
 		if self.partial is None:
 			# stuff not fully set up yet, but
@@ -39,91 +37,14 @@ class TunedFunction(DecoratorBase):
 			# of a value which triggered this.
 			return
 
-		kargs = tuner.args
-
-		# t = []
-		# # Do it this way to ensure the args go in in the order
-		# # of the formal parameter declaration
-		# # binod - redo this
-		# t.extend([these_args[params[i]] for i in range(start,len(params)) ])
-		# t = tuple(t)
-
 		# At this point, self,partial has:
 		# 	'self' bound,
 		# 	original kwargs bound
 		# 	positional parameters that Tuner can't handle shunted into kwargs
 		# now invoke it with the args set by the tuner.
-		ret = self.partial(tuner=tuner,**kargs)
+		kargs = tuner.args
+		ret = self.partial(**kargs,tuner=tuner)
 		return
-
-	def setup_tuner(self, tf_args,tf_kwargs):
-
-		if len(tf_args) == 0 : return
-		# this gets just the positional parameters
-		params = self.argspec.args
-		# Create a partial of Intercept with the 'self' frozen.
-		# Tuner just needs to call it with the `tuner` arg.
-		# Note, doing a partial on a method also curries
-		# the self along with it.
-		cb = functools.partial(self.intercept)
-		self.tuner = Tuner(cb)
-		# figure out how to get this in - its okay to be
-		# fugly for now.
-		# ,def_window_title=self.func_name
-
-		# See if there's anything we can tune
-		# If our target is a bound method, we
-		# want to ignore that 'self' - it's
-		# going to get bound anyway. When the
-		# self is passed in, there's a diff between
-		# the params we've identified, and the args
-		# passed in.
-		start = len(tf_args) - len(params)
-		# start = 1 if self.ismethod else 0
-		for i in range(start,len(tf_args)):
-			# formal positional parameter name
-			name = params[i-start]
-			# arg passed in to the call that kicks off tuning
-			arg = tf_args[i]
-
-			this_max = this_min = this_default = None
-			ty = type(arg)
-			if ty == int:
-				# vanilla arg has to be an int
-				this_max = arg
-				self.tuner.track(name, max=this_max)
-			elif ty == tuple:
-				# also a vanilla arg, but we got a tuple
-				# describing max, min, default
-				this_max = arg[0]
-				if len(arg) == 2: this_min = arg[1]
-				if len(arg) == 3: this_default = arg[2]
-				self.tuner.track(name, max=this_max,min=this_min,default=this_default)
-			elif ty == bool:
-				# its a boolean arg
-				self.tuner.track_boolean(name,default=arg)
-			elif ty == list:
-				# track from a list
-				# nothing fancy here like display_list etc
-				self.tuner.track_list(name,arg,return_index=False)
-			elif ty == dict:
-				# track from a dict/json
-				self.tuner.track_dict(name,arg, return_key=False)
-			else:
-				# Probably None. At any rate, something we cannot tune
-				# so curry it. Shunt it over to the kwargs for target.
-				tf_kwargs[name] = arg
-
-		# done defining what to track
-		# # self will get curried along with kwargs
-		# self.curry = functools.partial(self.target, args[0], **kwargs)
-
-		# curry just the kwargs which we do not touch
-		# 'self' will get curried along with kwargs
-		self.partial = functools.partial(self.target, **tf_kwargs)
-		# can we see function variables?
-		return
-
 
 	def before(self, *args, **kwargs):
 		"""Event handler."""
@@ -132,11 +53,24 @@ class TunedFunction(DecoratorBase):
 			# Tuner calls Intercept - not this function.
 			# Create the tuner and shunt the curried args into
 			# kwargs
-			self.setup_tuner(args, kwargs)
+
+			# this gets just the positional parameters
+			params = self.argspec.args
+			is_method = self.hacky_is_self(args[0])
+			self.tuner = Tuner.from_call(is_method, args,kwargs, params,self.intercept)
+
 			# The tuner has set up 'args' with default values at this point
 			# Check whether we have any args to track
 			# binod - reevauate - for now, just let the call through
 			if len(self.tuner.args) == 0 : return True
+
+			# Create a partial of Intercept.
+			# Note, doing a partial on a method also curries
+			# the self along with it.
+			# Tuner cannot manage certain kinds of params. Those
+			# have been shunted over to kwargs. Curry these kwargs.
+			self.partial = functools.partial(self.target, **kwargs)
+
 
 
 			# Call the begin() method to start up the tuner gui
@@ -157,7 +91,17 @@ class TunedFunction(DecoratorBase):
 			return False
 
 		return True
-
+	def hacky_is_self(self, arg):
+		ret = False
+		try:
+			qn = self.func_name
+			cn = qn[:qn.index('.')]
+			atn = str(type(arg))
+			ret = atn.endswith("." + cn + "'>")
+		except:
+			# so janky - just swallow the exception
+			pass
+		return ret
 	def after(self, *args, **kwargs):
 		# nothing going on here...
 		return
