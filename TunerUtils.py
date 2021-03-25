@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import copy
 
 
-import Tuner
+from TunerUI import TunerUI
 
 def stitch_images(img_list):
     if len(img_list) == 0: return
@@ -39,7 +39,7 @@ def tuner_from_json(cb_main, cb_downstream, json_def:dict):
     '''
     Returns an instance of Tuner configured to the json you pass in.
     '''
-    tuner = Tuner(cb_main,cb_downstream)
+    tuner = TunerUI(cb_main,cb_downstream)
     keys = list(json_def.keys())
     for key in keys:
         # each is a new trackbar
@@ -84,7 +84,7 @@ def minimal_preprocessor( cb_downstream = None, thumbnail=None):
     pre-processing, and save the results. Use the results json in your code.
     '''
 
-    def tune(tuner:Tuner):
+    def tune(tuner:TunerUI):
         res = {}
         img = tuner.image
         # we got nothing to say about preprocessing
@@ -92,10 +92,10 @@ def minimal_preprocessor( cb_downstream = None, thumbnail=None):
         tuner.results = res
 
         # get the processed image
-        tuner.image = Tuner.preprocess_to_spec(img,tuner.args)
+        tuner.image = TunerUI.preprocess_to_spec(img,tuner.args)
         # process the thumbnail if one exists
         if not thumbnail is None:
-            tuner.thumbnail = Tuner.preprocess_to_spec(thumbnail,tuner.args)
+            tuner.thumbnail = TunerUI.preprocess_to_spec(thumbnail,tuner.args)
         return
 
     json_def={

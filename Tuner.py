@@ -1,364 +1,552 @@
+
 import numpy as np
 import cv2
+# import copy
+import os
+import tempfile
+import sys
+import traceback
+import json
+import time
+import functools
+# import inspect
+import itertools as it
+import hashlib as hl
 
 from TunerConfig import TunerConfig
-from TuningContext import TuningContext
-from Args import Args
+# from TunerUI import TunerUI
+from Params import Params
+from PropertyBag import PropertyBag
+from Carousel import Carousel
 from constants import *
 
 class Tuner:
-    def __init__(self, func_main, *
-                , func_downstream = None
-                ):
+    def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
         '''
-        Tuning interface for users.
-        Please see the readme for detail.
-        func_main:  Required. The main target of tuning.
-        func_downstream: Optional. Similar to func, this is a downstream function to be called after func.
+        Usage:
+        This class is the main tuning engine, and is only used by the Ui
+        component. It should not be directly accessed by userland code.
+        Extenders: follow usage you see in TunerUI.
+
+        ui: set to an instance of TunerUI or a derived class
+        config: global config for Tuner
+        params: instance of params manager
+        func_main: tuned function
+        func_downstream: downstream function
         '''
+        # we'll raise UI update events on this guy
+        self.ui = ui
+        self.config = config
+        self.params = params
 
-        # set up config
-        self.config = TunerConfig()
-        # args handler
-        self._args = Args(self)
-        # tuning engine
-        self.ctx = TuningContext(self,self.config,func_main,func_downstream)
+        # primary function to tune
+        self.func_main = func_main
+        # downstream function to call
+        self.func_down = func_downstream
 
-        # various UI elements
-        self.show_window()
+        # get something set up to check against
+        self.invocation = None
+        # other state variables are initialized in before_invoke
 
         return
 
-    def show_window(self):
-        '''
-        User facing UI specific.
-        This is about as good as it gets for a non Qt UI. Trackbars
-        get added later when userland code adds params.
-        '''
-        # build the menuing system
-        function_keys ={118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
-        key_map = "F1: grid srch F2:save img F3:save args | Tag & Save ["
-        for k in self.config.tag_codes:
-            fk = function_keys[k]
-            name = Tags(k).name
-            key_map += fk + ":" + name + " "
-        key_map += "]"
+    def on_enter_carousel(self,carousel):
+        self.carousel = carousel
+        self.slot = None
 
-        # cv2.WINDOW_NORMAL|
-        # build the window
-        cv2.namedWindow(self.ctx.func_name,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
-        # show the menu
-        cv2.displayOverlay(self.ctx.func_name, key_map,delayms=0)
+        # How many invocations on the current carousel
+        self.invocation_counter = 0
 
-        # no stinking menus or trackbars on this one.
-        if not self.ctx.func_name_down is None:
-            # we have 2 pictures to show
-            cv2.namedWindow(self.ctx.func_name_down,cv2.WINDOW_KEEPRATIO|cv2.WINDOW_GUI_EXPANDED)
+        # gets reset in the before_invoke
+        self.carousel_data = PropertyBag()
+        # placeholders
+        self.carousel_data.ts = time.strftime('%Y-%m-%d %H:%M', time.localtime())
+        self.carousel_data.headless = self.headless
+        self.carousel_data.duration = ""
+        self.carousel_data.invocations = 0
+
+        self.t1 = time.time()
+        self.proc_time1 = time.process_time()
+
 
         return
 
-    def __del__(self):
-        cv2.destroyWindow(self.ctx.func_name)
-        if not self.__cb_downstream is None:
-            cv2.destroyWindow(self.ctx.func_name_down)
-        pass
-
-    def __contains__(self, key):
-        # if there's an arg for it,
-        # there's a property on this class
-        return key in self._args
-
-    def track(self, name, max, min=None, default=None):
-        '''
-        Add an int parameter to be tuned.
-        Please see the readme for details.
-        '''
-
-        return self._args.track(name, max, min, default)
-
-    def track_boolean(self, name, default=False):
-        '''
-        Add a boolean parameter to be tuned.
-        Please see the readme for details.
-        '''
-        return self._args.track_boolean(name,default)
-
-    def track_list(self, name, data_list, *, default_item=None, display_list=None, return_index=True):
-        '''
-        Add a list of values to be tuned.Please see the readme for details.
-        data_list: A list of values.
-        default_item: Initial pick.
-        display_list: An item corresponding to the selected index is used for display in Tuner.
-        return_index: When True, the selection index is returned, otherwise the selected item in data_list is returned.
-        '''
-
-        return self._args.track_list(name,data_list,default_item,display_list,return_index)
-
-    def track_dict(self, name, dict_like, *, default_item_key=None, return_key=True):
-        '''
-        Add a list of values to be tuned. Dict keys are displayed as selected values.
-        dict_like: Typically a dict or a json object.
-        default_item: Initial pick.
-        return_key: When True, the selected key is returned, otherwise, its object.
-        '''
-
-        return self._args.track_dict(name,dict_like,default_item_key,return_key)
-
-    def on_status_changed(self, val):
+    def on_exit_carousel(self, carousel):
         try:
-            cv2.displayStatusBar(self.ctx.func_name,val,10_000)
+            # figure duration
+            proc_time2 = time.process_time()
+            t2 = time.gmtime(time.time() - self.t1)
+            outp = f"{time.strftime('%H:%M:%S', t2 )}"
+            if t2.tm_sec <= 1 or (proc_time2 - self.proc_time1) < 1:
+                outp += f" [process_time: {round(proc_time2 - self.proc_time1,5)}]"
+            self.carousel_data.duration = outp
+            # set a count of how many iterations happened for
+            # this image in the carousel
+            self.carousel_data.invocations = self.invocation_counter
         except:
             pass
-
-    def on_show_main(self, img):
-        if not self.headless:
-            cv2.imshow(self.ctx.func_name, img)
+        finally:
+            # This may not be necessary, but is the only
+            # way to capture results from/issues with the very
+            # last image displayed when there is no tagging
+            # by the user.
+            self.save_last_invocation()
+            self.save_carousel()
+            # not traversing a carousel anymore
+            self.carousel = None
         return
 
-    def on_show_downstream(self,img):
-        if not self.headless:
-            cv2.imshow(self.ctx.func_name_down, img)
+    def end_carousel_advance(self):
+        # event - finished showing an image
+        # There may or may not be more images
+        # to process and show.
+
         return
 
-    def on_show_results(self, res):
-        if not self.headless:
-            # TBD
-            pass
-        return
-
-    def on_await_user(self):
+    def begin_carousel_advance(self,carousel):
+        # event - before showing an image
         '''
-        Show results and wait for user input for next action. This is
-        a GUI callback expected by the TuningContext
-        delay:      in ms - 0 means  - *indefinite*
-
+        OK! The analogy to my trusty Kodachrome projector is now thoroughly tortured.
         '''
-        # can only "show" in the context of some carousel
-        if self.ctx is None: return True
-        cancel = False
 
-        while(not self.headless):
-            # Wait forever (when delay == 0) for a keypress
-            # This is skipped when in headless mode.
-            k = cv2.waitKey(self.delay) #& 0xFF
-            # need to figure out how to reset cc
-            # before opening this back up
-            # if k == 122:
-            #     # F1 pressed
-            #     self.grid_search(None)
-            #     continue
-            if k == 120:
-                # F2 pressed = save image
-                self.ctx.save_image()
-                # don't exit just yet - clock starts over
-                continue
-            elif k == 99:
-                # F3 - force this invocation data to be saved
-                self.ctx.force_save()
-                # don't exit just yet - clock starts over
-                continue
-            elif k in self.config.tag_codes:
-                # tag the current result - stays in here
-                self.ctx.tag(k)
-                continue
+        self.ui.on_context_changed(carousel)
+        return
+
+    def get_func_name(self, cb):
+        # import TunedFunction
+        ret = None
+        if not cb is None:
+            if type(cb) is functools.partial:
+                ret = cb.func.__qualname__
             else:
-                # any other key - done with this image
-                # cancel the stack if the Esc key was pressed
-                cancel = (k==27)
-                break
-        return not cancel
+                ret = cb.__qualname__
+        return ret
 
-    def on_context_changed(self, carousel):
-        self.carousel = carousel
-        title = carousel.title + f" [{carousel.index} of {carousel.file_count}]"
-        cv2.setWindowTitle(self.ctx.func_name,title)
-        if not self.ctx.func_name_down is None:
-            cv2.setWindowTitle(self.ctx.func_name_down, "Downstream: " + title )
+    def invoke(self):
+        '''
+        This is where the target function is invoked.
+        The function may take parameters. Of these, we can handle
+        the positional and kwonly parameters. When we have matching
+        names in theta and parameters to the function, we can pass
+        in values from theta in those params - converting them to kwonly
+        args in the process.
+        If there is a parameter to the function for which:
+            1. Tuner has nothing in theta, and
+            2. No defaults have been provided in the argspec
+        then, the arg is set to None.
+        It is a design choice which could introduce hard to find bugs,
+        but the current thinking is that the dev would set the defaults
+        to None to make progress, and a real call, e.g., from the auto-grader
+        would pass a real value.
+        '''
+
+        def safe_invoke(cb):
+            try:
+                if cb is None: return
+
+                if self.__calling_main:
+                    # invoke
+                    res = cb(**self.params.resolved_args)
+                else:
+                    # the red headed stepchild gets no arg love
+                    res = cb(tuner=self.ui)
+
+                # At this point, the target is done.
+                # Use whatever returns we have captured.
+                self.set_result(res,is_return=True)
+            except Exception as error:
+                # do not let downstream errors kill us
+                # eventually we'll have an appropriate gui
+                # for showing this error
+                self.capture_error(self.get_func_name(cb))
+            finally:
+                # Either the user has set results or we have
+                pass
+            return
+
+        ret = True
+        try:
+
+            # now let the context grab what it may
+            self.before_invoke()
+
+            # call the user proc that does the calc/tuning
+            self.__calling_main = True
+            safe_invoke(self.func_main)
+
+            #  call the user proc that does the secondary processing/application
+            self.__calling_main = False
+            safe_invoke(self.func_down)
+
+            # done calculating - don't need to do anything
+            # special to show the image or the results
+            # That gets done when the user sets the
+            # `image` and `result` properties from
+            # within the target function.
+
+        except:
+            pass
+        finally:
+            # last thing
+            self.after_invoke()
+            ret = self.ui.on_await_user()
+
+        return ret
+
+    def set_result(self, res, *, is_return:bool=False):
+        '''
+        Calls from userland to the 'results' property
+        are forwarded here. This is also called directly
+        by us to save return values with overwrite set to False.
+        This allows user set results to be overwrittwen only
+        by other user calls. The default return capture does
+        not overwrite user results.
+        res:        result to store
+        is_return:  only set to True internally
+        '''
+        def format_result():
+            ret = None
+            if type(res) is tuple:
+                # Results are tupled together
+                # convert to array - weed out types
+                # incompatible with json.dumps
+                ret = []
+                for obj in res:
+                    if type(obj) is np.ndarray:
+                        # not using that
+                        pass
+                    else:
+                        ret.append(obj)
+                # ret = {"list":ret}
+            elif type(res) is np.ndarray:
+                ret = None
+            # elif type(res) is dict:
+            #     ret = res
+            else:
+                ret = res
+            return ret
+
+        try:
+            # get a result that we can safely stash
+            res = format_result()
+
+            if self.__calling_main:
+                if (self.invocation.results.main is None) or not is_return :
+                    # either forwarded call from userland, or
+                    # default result capture and no results saved yet
+                    self.invocation.results.main = res
+                    if is_return: self.invocation.results.return_capture = True
+            else:
+                # the object setting this is the downstream func
+                if (self.invocation.results.downstream is None) or not is_return:
+                    self.invocation.results.downstream = res
+                    if is_return: self.invocation.results.return_capture = True
+        finally:
+            # Since we do stuff to the results forwarde to us, call back up to the UI
+            self.ui.on_show_results(self.invocation.results)
+            pass
 
         return
 
-    def on_controls_changed(self):
-        # pass this on to ctx for an invoke
-        self.ctx.invoke()
-
-    def grid_search(self, carousel, headless=False,delay=500, esc_cancels_carousel = False):
-        '''
-        Conducts a grid search across the trackbar configuration, and saves
-        aggregated results to file. When not in headless mode, you can
-        save images and results for individual files as they are displayed.
-        carousel:   Like review(), a list of image file names
-        headless:   When doing large searches, set this to True to suppress the display.
-        delay   :   When not in headless mode, acts like review()
-        esc_cancels_carousel: When you submit a carousel, does the 'Esc' key get you:
-                            -- out of tuning the current image only (False), or
-                            -- out of the entire carousel as well (True)
-        '''
-        self.headless = headless
-        self.delay = delay
-        return self.ctx.grid_search(carousel,headless,esc_cancels_carousel)
-
-    def review(self, carousel, delay=2_000):
-        '''
-        Usage: Identical to begin() except in that each image is shown for 'delay' ms unless interrupted.
-        Sit back and enjoy the slideshow, saving image/result files
-        as you go. Typically used in your regression test.
-        1. create a tuner and set defaults to the best of your knowledge
-        2. call this to flip through the images from your project
-        carousel: one of
-                -- None (if you are reading images in the tuning target)
-                -- Single single fully qualified file name
-                -- A list of fully qualified file names, each of which will be processed
-        delay   : miliseconds to hold the display
-        '''
-        # TODO: turn off the UI controls
-        self.headless = False
-        self.delay = delay
-        ret = self.ctx.review(carousel)
-
-        return ret
-
-    def begin(self, carousel):
-        '''
-        Display the Tuner window.
-        fnames: See readme. can be None, a single file name, or a list of file names.
-                When a list, each image is processed until interruped via the keyboard.
-                Hit Esc to cancel the whole stack.
-        '''
-        self.headless = False
-        self.delay = 0
-        ret = self.ctx.begin(carousel)
-        # should we just leave this hanging around? Or unload?
-
-        return ret
-
+    @property
+    def func_name(self):
+        return self.get_func_name(self.func_main)
 
     @property
-    def args(self):
-        return self._args.args
-    @property
-    def arg_mgr(self):
-        return self._args
+    def func_name_down(self):
+        return self.get_func_name(self.func_down)
 
-    @property
-    def context_files(self):
-        '''
-        When your code works with multiple files, e.g., in Motion Detection, you will
-        need to specify sets of images that go together. You do this by constructing
-        a list, each item of which is a tuple of n file names. Each slot in the
-        carousel makes the files in the tuple available through this property.
-        '''
-        return self.carousel.context_files
+    def save_last_invocation(self):
+        # we keep track of results, args, tags etc
+        # at the invocation level but only move those
+        # into the record at the file/image/title level
+        # when certain conditions are met
 
+        if self.invocation is None: return
+        save = False
+        # user requested save,
+        # or we are configured to save all
+        # or this carousel is running headless (e.g. in a long grid search)
+        save = self.invocation.force_save or self.config.save_all or self.headless
+        # or we have an error
+        save = save or self.invocation.errored
+        # or any of the tags got set on this invocation
+        save = save or (len([tag for tag in self.config.tag_names if self.invocation[tag] == True]) > 0)
+
+        if save:
+            # save this invocation
+            # in the file hive,
+            # keyed by the args hash
+            hive = None
+            if self.slot.title in self.carousel_data:
+                hive = self.carousel_data[self.slot.title]
+            else:
+                # make a hive for this result
+                hive = self.carousel_data[self.slot.title] = {}
+            # get rid of unseemly attributes
+            del(self.invocation.force_save)
+            hive[self.arg_hash] = self.invocation
+
+        return save
+
+    def before_invoke(self):
+        # about to call the target with a new
+        # set of params, save the last set if
+        # we ought to. The user may have tagged
+        # stuff after viewing it, etc, etc
+
+        self.save_last_invocation()
+
+        # this is the current set of args
+        theta = self.params.theta
+        self.arg_hash = (hl.md5((json.dumps(theta)).encode('utf-8'))).hexdigest()
+
+        # initialize a complete invocation record
+        # with default values here
+        self.invocation = PropertyBag()
+        # flags
+        # tags go here - all set to false initially
+        self.invocation.update(self.config.default_tag_map)
+        # whether there was an error - for convenience in querying
+        self.invocation.errored = False
+        # errors go here
+        self.invocation.error = ""
+        # args, and results last - just a visual thing
+        # get updated args
+        self.invocation.args = theta
+        self.invocation.results = PropertyBag()
+        # set up placeholders
+        self.invocation.results.main=None
+        self.invocation.results.downstream=None
+        self.invocation.force_save = False
+
+        return
+
+    def after_invoke(self):
+        # important safety tip - do not clear out the last invocation record
+        # results from tuner will be grabbed if we need to save them
+        # for saving later
+        self.invocation_counter += 1
+
+        return
+
+    def tag(self, obs:Tags):
+        if self.invocation is None: return
+        tag = Tags(obs).name
+        self.invocation[tag] = True
+
+        return
     @property
     def results(self):
-        '''
-        Returns results json which includes the results set by main, as well as by downstream.
-        '''
 
-        return self.ctx.results
-
-    @results.setter
-    def results(self, val):
-        '''
-        Called from userland code to save various results
-        '''
-        self.ctx.set_result(val)
+        return self.invocation.results
 
     @property
     def image(self):
         '''
         Always return a fresh copy of the user supplied image.
         '''
-        return self.ctx.image
+        return np.copy(self.slot.image)
 
     @image.setter
     def image(self, val):
-        self.ctx.image = val
+        '''
+        Set this from your tuned function to have Tuner display it.
+        '''
+        # This call is forwarded to us by the UI
+        # However, since we're deciding which img it is,
+        # call back up to the UI to do a display
+        if self.__calling_main:
+            val = self.__insert_thumbnail(val, self.slot.tn_main)
+            self.slot.user_image_main = val
+            self.ui.on_show_main(val)
+        else:
+            # the object setting this is the downstream func
+            val = self.__insert_thumbnail(val, self.slot.tn_down)
+            self.slot.user_image_down = val
+            self.ui.on_show_downstream(val)
+    def capture_error(self, func_name):
+        self.invocation.errored = True
+        # format the error string and the call stack
+        error = f"{sys.exc_info()[0]} - {sys.exc_info()[1]}"
+        l = traceback.format_tb(sys.exc_info()[2])
+        # we're always at the top, so get rid of that
+        l.pop(0)
+        # put in the nice error message
+        l.append(error)
+        # I like to see the most recent call up at the top
+        # - not scroll to the bottom for it
+        l.reverse()
+        self.invocation.error = l
+
+        # finally, set the gui status display
+        self.ui.on_status_changed(f"Error executing {func_name}: {error}")
+    def force_save(self):
+        self.invocation.force_save = True
+    def get_temp_file(self, suffix=".png"):
+        '''
+        Creates a temporary file with the specified suffix.
+        The temp file is prefixed with the name of the main target,
+        and image currently being processed
+        '''
+        if self.slot is None: return
+        prefix = self.func_name
+        if self.slot.file_count <= 1 or suffix.endswith(".png"):
+            # results for a single file, or it's
+            # an image file being saved.
+            # Use the file name
+            it = self.slot.title
+        else:
+            # we are going to be saving multiple
+            # image results to this file, there's
+            # no need to put the image name in the
+            # file name.
+            it = None
+
+        # check if window currently has an image
+        if it == prefix: it = None
+        prefix = prefix + "." + it if not (it is None or it == "") else prefix
+        if not self.config.overwrite_file:
+            # get a unique file name
+            prefix += "."
+            # we're just going to leave this file lying around
+            _, full_path_name = tempfile.mkstemp(
+                                # makes it easy to find
+                                prefix=prefix
+                                ,suffix=suffix
+                                ,dir=self.config.wip_dir
+                                ,text=True
+                                )
+        else:
+            # we can overwrite the func_name.image_name file
+            full_path_name = os.path.join(self.config.wip_dir, prefix + suffix)
+            full_path_name = os.path.realpath(full_path_name)
+        return full_path_name
+
+    def save_carousel(self):
+        '''
+        Saves the current set of results to a file following name conventions.
+        Use capture to add individual results to the set.
+        '''
+        ret = True
+
+        fname = self.get_temp_file(suffix=".json")
+        try:
+            with open(fname,"w") as f:
+                f.write(str(self.carousel_data))
+                f.write("\n")
+        except:
+            # dont let this screw anything else up
+            self.ui.on_status_changed("Failed to write results.")
+            ret = False
+
+        return ret
+
+    def save_image(self):
+        '''
+        Saves the current image to a temp file in
+        the working directory set during initialization.
+        '''
+        fname = self.get_temp_file(suffix=".main.png")
+        cv2.imwrite(fname,self.slot.user_image_main)
+        if not self.slot.user_image_down is None:
+            fname = fname.replace(".main.", ".downstream.")
+            cv2.imwrite(fname,self.slot.user_image_down)
+        return
 
     @property
     def thumbnail(self):
-        return self.ctx.thumbnail
+        '''
+        This image is inserted into the upper left hand corner of the main image. Keep it very small.
+        '''
+        if self.__calling_main:
+            return self.slot.tn_main
+        else:
+            return self.slot.tn_down
+
     @thumbnail.setter
-    def thumbnail(self, val):
-        self.ctx.thumbnail = val
+    def thumbnail(self,val):
+        # this is the current thumbnail
+        if self.__calling_main:
+            self.slot.tn_main = val
+        else:
+            self.slot.tn_down = val
+        return
 
-    @property
-    def window(self):
-        return self.ctx.func_name
-
-    @staticmethod
-    def get_sample_image_color():
-        return cv2.imread(TunerConfig.img_sample_color)
-
-    @staticmethod
-    def get_sample_image_bw():
-        return cv2.imread(TunerConfig.img_sample_bw)
-
-    @staticmethod
-    def from_call(args, kwargs):
-        return TuningContext.from_call(args, kwargs)
-
-    @staticmethod
-    def from_call(call_is_method, args, kwargs, params, cb):
+    def __insert_thumbnail(self, mn, tn):
         '''
-        This is called from the middle of an intercepted call to create
-        a tuner, and configure its args.
-        args:   args to the function
-        kwargs: ditto
-        params: just the positional parameters to the function
-        cb    : the main function to tune
+        mn: main image to insert the thing into
         '''
+        # do not use the property - use what has been set
+        if not (mn is None or tn is None):
+            # Draw a bounding box 1 pixel wide in the top left corner.
+            # The box should have enough pixels for all of the image
+            bt = 1
+            tl = (3,3)
+            br = (tl[0] + tn.shape[1] + (2*bt), tl[1] + tn.shape[0] + (2*bt))
+            cv2.rectangle(mn,tl,br,HIGHLIGHT_COLOR,thickness=bt)
+            # adjust for offset border
+            tl = (tl[0] + bt, tl[1] + bt)
+            x,x1,y,y1 = self.image_to_array_indices(tl,img_shape=tn.shape)
 
-        if len(args) == 0 : return
-        tuner = Tuner(cb)
-        # See if there's anything we can tune
-        # If our target is a bound method, we
-        # want to ignore that 'self' - it's
-        # going to get bound anyway. When the
-        # self is passed in, there's a diff between
-        # the params we've identified, and the args
-        # passed in.
-        a_off = 1 if call_is_method else 0
-        for i in range(a_off, len(args)):
-            # formal positional parameter name
-            name = params[i - a_off]
-            # arg passed in to the call that kicks off tuning
-            arg = args[i]
-
-            this_max = this_min = this_default = None
-            ty = type(arg)
-            if ty == int:
-                # vanilla arg has to be an int
-                this_max = arg
-                tuner.track(name, max=this_max)
-            elif ty == tuple:
-                # also a vanilla arg, but we got a tuple
-                # describing max, min, default
-                this_max = arg[0]
-                if len(arg) == 2: this_min = arg[1]
-                if len(arg) == 3: this_default = arg[2]
-                tuner.track(name, max=this_max,min=this_min,default=this_default)
-            elif ty == bool:
-                # its a boolean arg
-                tuner.track_boolean(name,default=arg)
-            elif ty == list:
-                # track from a list
-                # nothing fancy here like display_list etc
-                tuner.track_list(name,arg,return_index=False)
-            elif ty == dict:
-                # track from a dict/json
-                tuner.track_dict(name,arg, return_key=False)
+            tn_dim = np.ndim(tn)
+            if np.ndim(mn) == 3:
+                mn[x:x1,y:y1, 0] = tn if tn_dim == 2 else tn[:,:,0]
+                mn[x:x1,y:y1, 1] = tn if tn_dim == 2 else tn[:,:,1]
+                mn[x:x1,y:y1, 2] = tn if tn_dim == 2 else tn[:,:,2]
             else:
-                # Something we cannot tune, so curry it.
-                # Shunt it over to the kwargs for target.
-                # Don't both trying to bind 'self' or tuner
-                if name not in ['tuner','self']: kwargs[name] = arg
+                mn[x:x1,y:y1] = tn if tn_dim == 2 else cv2.cvtColor(tn,cv2.COLOR_BGR2GRAY)
+        return mn
 
-        # done defining what to track
+    def begin(self,carousel):
+        self.headless = False
+        with Carousel(self,carousel) as tray:
+            for slot in tray:
+                self.slot = slot
+                ret  = self.invoke()
+                if not ret: break
+        return ret
 
-        return tuner
+    def grid_search(self, carousel, headless, esc_cancels_carousel = False, subset=None):
+        self.headless = headless
+        # the ranges that our trackbars have
+        ranges = self.params.get_ranges(subset)
+        with Carousel(self,carousel) as tray:
+            for slot in tray:
+                self.slot = slot
+                # Bang on this image.
+                user_cancelled = False
+                # cart(esian) iterates over the complete set of values that this constellation of trackbars could have.
+                # It needs to be rebuilt for each file, as an iteration will exhaust it.
+                cart = it.product(*ranges.values())
+                for theta in cart:
+                    args = {k:theta[i] for i,k in enumerate(ranges)}
+                    # Update the trackbar values.
+                    self.params.theta = args
+                    # Invoke target
+                    user_cancelled = not self.invoke()
+                    if user_cancelled : break #out of this image
+                # done with the last image
+                if user_cancelled and esc_cancels_carousel: break
 
+        return not user_cancelled
 
+    def image_to_array_indices(self, img_pt_from, *
+                                , img_pt_to = None
+                                , img_shape = None):
+
+        # since array x and y are flipped in the image
+        y, x = img_pt_from
+
+        if not img_pt_to is None:
+            # go point to point
+            y1, x1 = img_pt_to
+        elif not img_shape is None:
+            # this is the shape of the subset image
+            y1, x1 = img_shape[0], img_shape[1]
+            y1 += y
+            x1 += x
+        return x, x1, y, y1
 
 
 

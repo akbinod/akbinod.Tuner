@@ -7,8 +7,8 @@ class PropertyBag(dict):
     '''
     def __init__(self) -> None:
         super().__init__()
-        # self.props = {}
         pass
+
     def __delattr__(self, name: str) -> None:
         if name in self: del(self[name])
 
@@ -25,9 +25,6 @@ class PropertyBag(dict):
 
         return
 
-    def __repr__(self) -> str:
-        return str(self)
-
     def __str__(self) -> str:
         # return a json repr of this dict
         #
@@ -35,7 +32,4 @@ class PropertyBag(dict):
 
     def update(self, val):
         return super().update(val)
-
-
-
 

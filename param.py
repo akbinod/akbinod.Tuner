@@ -1,8 +1,10 @@
 import cv2
 
-class tb:
+class param:
     '''
-    Specific to openCV's highGUI implementation.
+    The aspect specific to openCV's highGUI implementation is just a couple calls,
+    override the on_ui_x set of calls.
+
     '''
     def __init__(self, ui, name, *, max, min, default, cb_on_update=None) -> None:
         if max is None: raise ValueError("Must have 'max' to define a regular trackbar.")
@@ -13,24 +15,50 @@ class tb:
         self.min = 0 if min is None else (min if min >= 0 else 0)
         self.default = self.min if default is None else (self.min if default <= self.min or default > self.max else default)
         self._value = self.default
-        self.trackbar = cv2.createTrackbar(name, ui.window
-                                            ,self.default
-                                            ,self.max
-                                            ,self.set_value)
-        cv2.setTrackbarMin(self.name, self.ui.window,self.min)
+
+        # init UI
+        self.on_ui_create()
+
         # do not trigger the event - things are just getting set up
         # the "begin()" and other methods will reach out for the args anyway
         self.set_value(self.default,True)
 
+    def on_ui_create(self):
+        self.trackbar = cv2.createTrackbar(self.name
+                                            , self.ui.window
+                                            ,self.default
+                                            ,self.max
+                                            ,self.set_value)
+        cv2.setTrackbarMin(self.name, self.ui.window,self.min)
+        return
+    def on_ui_update(self,val):
+        try:
+            boo = self.on_update
+            # the UI triggers a callback from Qt so turn off event handling for a bit
+            self.on_update = None
+            cv2.setTrackbarPos(self.name, self.ui.window, val)
+        except:
+            pass
+        finally:
+            # turn event handling back on
+            self.on_update = boo
+
+        return
     def spec(self):
         # these must be ints, not floats
         return int(self.max), int(self.default)
 
+    @property
     def range(self):
-        # if the user wants to see a certain min, why default to 0
+
         # range will not return the 'max' value
         ret = range(self.min, self.max + 1)
         return ret
+
+    @property
+    def value(self):
+
+        return self.get_value()
 
     def set_value(self,val, headless_op=False):
         '''
@@ -47,20 +75,8 @@ class tb:
         self.ui.on_status_changed(self.name + ":" + str(self.get_display_value()))
         if headless_op:
             # This call is from code, not from an event generated
-            # by a click. So update the UI safely
-            # this will not trigger an update event
-            try:
-                boo = self.on_update
-                # turn off event handling
-                self.on_update = None
-                # the following line sometimes triggers a callback from Qt
-                # so this
-                cv2.setTrackbarPos(self.name, self.ui.window,val)
-            except:
-                pass
-            finally:
-                # turn event handling back on
-                self.on_update = boo
+            # by a click. So update the UI without triggerin an update event
+            self.on_ui_update(val)
         else:
             # python will delegate to the most derived class
             # the next line will kick off a refresh of the image
@@ -85,17 +101,7 @@ class tb:
         '''
         return self.get_value()
 
-    def ticks(self):
-        # generator over the range of values
-        for i in range(self.max):
-            # tick over and set value to new
-            # do this "headless" so that we
-            # are not refreshing unnecessarily
-            self._value = i
-            yield i
-        return
-
-class tb_boolean(tb):
+class bool_param(param):
     def __init__(self, ui, name, *, default=False, cb_on_update=None) -> None:
         '''
         Represents True/False values.
@@ -108,7 +114,7 @@ class tb_boolean(tb):
         ret = False if ret <= 0 else True
         return ret
 
-class tb_list(tb):
+class list_param(param):
     def __init__(self, ui, name, *, data_list, display_list=None, default_item=None, return_index=True, cb_on_update=None) -> None:
         '''
         Represents a list of values. The trackbar is used to pick the list index
@@ -154,7 +160,7 @@ class tb_list(tb):
             ret = self.__display_list[ret]
         return ret
 
-class tb_dict(tb_list):
+class dict_param(list_param):
     def __init__(self, ui, name, dict_like, *, default_item_key, return_key=True, cb_on_update) -> None:
         '''
         Like a list tracker. Keys become data items, and associated data become display items.
@@ -168,7 +174,8 @@ class tb_dict(tb_list):
             # make a list of the keys
             display_list = list(dict_like.keys())
             # and a list of values
-            data_list = [obj for obj in [dict_like[key] for key in dict_like]]
+            # data_list = [obj for obj in [dict_like[key] for key in dict_like]]
+            data_list = [dict_like[key] for key in dict_like]
             assert data_list is not None and len(data_list) > 0
         except:
             raise ValueError("Dict like object must be populated and support key iteration.")

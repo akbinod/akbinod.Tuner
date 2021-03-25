@@ -111,6 +111,18 @@ class DecoratorBase():
 			self.on_func_set()
 		return
 
+	def hacky_is_self(self, arg):
+		ret = False
+		try:
+			qn = self.func_name
+			cn = qn[:qn.index('.')]
+			atn = str(type(arg))
+			ret = atn.endswith("." + cn + "'>")
+		except:
+			# so janky - just swallow the exception
+			pass
+		return ret
+
 	def inject_function_method(self, method_name,func, **keywords ):
 		f = None
 		try:

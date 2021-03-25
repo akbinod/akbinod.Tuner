@@ -31,7 +31,7 @@ class Tags(Enum):
 
 class SaveStyle(Flag):
     '''
-    Change the Tuner.save_style static if the current scheme does not work for you.
+    Change the TunerConfig.save_style static if the current scheme does not work for you.
     '''
     all = auto()
     tagged = auto()
