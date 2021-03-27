@@ -1,14 +1,23 @@
-# from PropertyBag import PropertyBag
-# import cv2
-# import copy
 from param import param, bool_param, dict_param, list_param
 import inspect
 
 
 class prop:
 
-    def __init__(self, get_val_method):
-        self.get_val_method = get_val_method
+    def __init__(self, name, cls, cb_read, cb_write=None):
+        '''
+        Creates an attribute on a given class. The property is added to the class,
+        not to an instance of an object as of Python 3.7
+        name:       of the property
+        cls:        the type() of the object you want a property on. The property gets
+
+        cb_read:    callback to the @property
+        cb_write:   (careful with that axe Eugene)
+        '''
+
+        self.get_val_method = cb_read
+        setattr(cls ,name, self)
+
     def __get__(self, instance, owner):
         if instance is None:
             return self
@@ -74,14 +83,22 @@ class Params():
                 }
         self.target_defaults.update(argdef)
 
+        # do the following validation after everything else
         # throw if 'tuner' is not found in the argset
         if not "tuner" in self.target_params:
             # the user needs to set up a param called tuner
-            raise ValueError("There must be a parameter to this function called 'tuner'.")
+            raise ValueError(f"There must be a parameter to the tuned function called 'tuner'.")
         else:
             # put this away here - it will get picked up
             # when packing kwargs
             self.target_defaults["tuner"] = self.ui
+
+
+        # DO NOT get rid of 'self' here
+        # if self.target_params[0] == "self":
+        #     self.target_params.pop(0)
+        #     del self.target_defaults["self"]
+
         return
 
     def __contains__(self, key):
@@ -138,9 +155,11 @@ class Params():
                 self.ui.track_dict(parm,val, return_key=False)
             else:
                 # Something we cannot tune, so curry it.
-                # As long as it's not 'tuner'
+                # As long as it's not 'self'
                 # we can use this value as the default.
                 if parm not in ['tuner']: self.target_defaults[parm] = val
+                # if parm not in ['self']: self.target_defaults[parm] = val
+                # if parm not in ['tuner', 'self']: self.target_defaults[parm] = val
 
             return
 
@@ -183,13 +202,28 @@ class Params():
         # done defining what to track
 
         return
+    def update_defaults(self, args:dict):
+        '''
+        Called to update the value of default arguments.
+        Typical usage - specify an invocation's image files.
+        This will have no effect on tracked/tuned parameters,
+        as those are gathered on arg resolution.
 
-    def __track_param(self, name, t):
-        self.tuned_params[name] = t
-        # create an attribute:
+        args: dict in the form param_name:value
+        '''
+        self.target_defaults.update(args)
+        return
+    def __track_param(self, name, parm):
+        self.tuned_params[name] = parm
+
+        # create an attribute on the tuner facade/ui:
         #   1. with the same name as the tuned param; and
         #   2. binds to the get_value method on the param
-        setattr(type(self.ui) ,name, prop(t.get_value))
+
+        # Do not hold on to this tuner UI prop, it's
+        # bound to the UI and is not going anywhere
+        # until the UI itself is garbage collected/
+        tp = prop(name,type(self.ui),parm.get_value)
 
         return
 

@@ -40,10 +40,9 @@ class TunedFunction(DecoratorBase):
 			# 2. tuner calls target on every arg change
 			# 3. target returns, and then we go back to 2
 			# Steps 2 to 3 loop until the user breaks out.
-			self.tuner.begin(None)
-			# release the tuner so it can go away
-			# TODO: INTERESTING TWIST
-			del(self.tuner)
+			self.tuner.begin()
+
+
 			# The user exited the tuning session, so we have handled
 			# this call to target. We do not want this particular
 			# invocation passed on to target, since it was the

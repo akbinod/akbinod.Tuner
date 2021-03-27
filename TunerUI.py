@@ -1,9 +1,11 @@
+from Carousel import Carousel
 import numpy as np
 import cv2
 
 from TunerConfig import TunerConfig
 from Tuner import Tuner
 from Params import Params
+from Carousel import *
 from constants import *
 
 class TunerUI:
@@ -106,7 +108,7 @@ class TunerUI:
 
     def on_status_changed(self, val):
         try:
-            cv2.displayStatusBar(self.ctx.func_name,val,10_000)
+            cv2.displayStatusBar(self.ctx.func_name,val,30_000)
         except:
             pass
 
@@ -168,9 +170,9 @@ class TunerUI:
                 break
         return not cancel
 
-    def on_context_changed(self, slot):
-        self.slot = slot
-        title = slot.title + f" [{slot.index} of {slot.file_count}]"
+    def on_context_changed(self, new_frame):
+        self.frame = new_frame
+        title = new_frame.title + f" [{new_frame.index} of {new_frame.tray_length}]"
         cv2.setWindowTitle(self.ctx.func_name,title)
         if not self.ctx.func_name_down is None:
             cv2.setWindowTitle(self.ctx.func_name_down, "Downstream: " + title )
@@ -184,12 +186,12 @@ class TunerUI:
         self.ctx.invoke()
         return
 
-    def grid_search(self, carousel, headless=False,delay=500, esc_cancels_carousel = False):
+    def grid_search(self, carousel=None, headless=False,delay=500, esc_cancels_carousel = False):
         '''
         Conducts a grid search across the trackbar configuration, and saves
         aggregated results to file. When not in headless mode, you can
         save images and results for individual files as they are displayed.
-        carousel:   Like begin(), a list of image file names
+        carousel:   A fully initialize Carousel, use the carousel_from_() helper functions to gin one up.
         headless:   When doing large searches, set this to True to suppress the display.
         delay   :   When not in headless mode, acts like begin()
         esc_cancels_carousel: When you submit a carousel, does the 'Esc' key get you:
@@ -198,36 +200,98 @@ class TunerUI:
         '''
         self.headless = headless
         self.delay = delay
+        # here in support of TunedFunction
+        if carousel is None: carousel = self.null_carousel()
+        if not type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
         return self.ctx.grid_search(carousel,headless,esc_cancels_carousel)
 
-    def begin(self, carousel, delay=0):
+    def begin(self, carousel=None, delay=0):
         '''
         Display the Tuner window.
-        fnames: See readme. can be None, a single file name, or a list of file names.
-                When a list, each image is processed until interruped via the keyboard.
-                Hit Esc to cancel the whole stack.
+        carousel: A fully initialize Carousel, use the carousel_from_() helper functions to gin one up. See readme for more information.
+        delay:    Milliseconds to show each image in the carousel until interrupted by the keyboard. 0 for indefinite.
         '''
         self.headless = False
         self.delay = delay
+        # here in support of TunedFunction
+        if carousel is None: carousel = self.null_carousel()
+        if not  type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
         ret = self.ctx.begin(carousel)
         # should we just leave this hanging around? Or unload?
 
         return ret
 
+    def build_from_call(self, call_is_method:bool, call_args, call_kwargs):
+        '''
+        This is meant for use by the TunedFunction decorator - not
+        for direct use by userland code.
+        This is called from the middle of an intercepted call to create
+        a tuner, and configure its args.
+        cb      : the main function to tune (tuning target)
+        is_method: whether this is a class method or not
+        args    : should contain the args from your invocation
+        kwargs  : ditto
+        '''
+        return self._parms.build_from_call(call_is_method, call_args, call_kwargs)
+
+        return
+
+
+    def null_carousel(self):
+        # here just to support TunedFunction
+        c = Carousel(self.ctx,None,None)
+        return c
+    def carousel_from_images(self, params:list, images:list, im_read_flag=None, normalize=False):
+        '''
+        Builds a carousel from the supplied parameters.
+        params: A list of names of parameters to the tuned function.
+        images: A list of tuples. Each tuple has exactly as many file names as len(params). Cannot be any other type.
+        im_read_flag: One of the IMREAD_ flags from openCV. Match this to your test cases.
+        normalize: Whether to normalize the image on read. Match this to your test cases.
+        '''
+        return Carousel.from_images(self.ctx, params,images,im_read_flag,normalize)
+    def carousel_from_video(self, params:list, video, gs:FrameGenStyle):
+        '''
+        Builds a carousel from the supplied parameters.
+        params: A list of names of parameters to the tuned function.
+        video: Full path to video file.
+        gs: Governs how many images are yielded, how they are pre-processed etc.
+        '''
+
+        return Carousel.from_video(self.ctx, params,video,gs)
+
+    def inspect(self, image:np.ndarray = None, comment:str = None, state:dict=None, delay=40):
+        '''
+        Meant to be called to show interim results,
+        e.g., while your particle filter is SLOWLLLLLY converging.
+        Returns whatever the waitkey() call returns
+        image: will be shown in the UI
+        comment: in the status bar
+        state: perhaps in the next version, we'll show this
+        delay: how long to wait for a keyboard interrupt in ms
+        '''
+        ret = None
+        self.on_status_changed(comment)
+        self.on_show_main(image)
+        # what to do with state?
+
+        if not delay is None: ret = cv2.waitKey(delay)
+
+        return ret
 
     @property
     def args(self):
         return self._parms.theta
 
     @property
-    def context_files(self):
+    def files(self):
         '''
         When your code works with multiple files, e.g., in Motion Detection, you will
         need to specify sets of images that go together. You do this by constructing
-        a list, each item of which is a tuple of n file names. Each slot in the
+        a list, each item of which is a tuple of n file names. Each frame in the
         carousel makes the files in the tuple available through this property.
         '''
-        return self.slot.context_files
+        return self.frame.files
 
     @property
     def results(self):
@@ -275,20 +339,6 @@ class TunerUI:
         return cv2.imread(TunerConfig.img_sample_bw)
 
 
-    def build_from_call(self, call_is_method:bool, call_args, call_kwargs):
-        '''
-        This is meant for use by the TunedFunction decorator - not
-        for direct use by userland code.
-        This is called from the middle of an intercepted call to create
-        a tuner, and configure its args.
-        cb      : the main function to tune (tuning target)
-        is_method: whether this is a class method or not
-        args    : should contain the args from your invocation
-        kwargs  : ditto
-        '''
-        return self._parms.build_from_call(call_is_method, call_args, call_kwargs)
-
-        return
 
 
 

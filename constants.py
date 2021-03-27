@@ -38,3 +38,10 @@ class SaveStyle(Flag):
     newfile = auto()
     overwrite = auto()
 
+class FrameGenStyle(Flag):
+    yield_1 = auto()
+    yield_2 = auto()
+    yield_all_new = auto()
+    yield_last_one_sticks = auto()
+    convert_grayscale = auto()
+    convert_normalize = auto()

@@ -1,0 +1,20 @@
+from PropertyBag import PropertyBag
+
+from PropertyBag import PropertyBag
+class Frame(PropertyBag):
+    def __init__(self) -> None:
+        self.image = None
+        self.title = "frame"
+
+        self.index =  0
+        self.tray_length = 0
+        self.files = []
+        self.images = []
+        self.params = {}
+        #Holds user input so that we can insert thumbnails, save, etc.
+        self.user_image_main = None
+        self.user_image_down = None
+        self.tn_main = None
+        self.tn_down = None
+
+        return

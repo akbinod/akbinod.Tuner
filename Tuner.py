@@ -1,4 +1,5 @@
 
+import inspect
 import numpy as np
 import cv2
 # import copy
@@ -36,8 +37,8 @@ class Tuner:
         '''
         # we'll raise UI update events on this guy
         self.ui = ui
-        self.config = config
-        self.params = params
+        self._config = config
+        self._params = params
 
         # primary function to tune
         self.func_main = func_main
@@ -52,7 +53,7 @@ class Tuner:
 
     def on_enter_carousel(self,carousel):
         self.carousel = carousel
-        self.slot = None
+        self.frame = None
 
         # How many invocations on the current carousel
         self.invocation_counter = 0
@@ -96,20 +97,16 @@ class Tuner:
             self.carousel = None
         return
 
-    def end_carousel_advance(self):
-        # event - finished showing an image
-        # There may or may not be more images
-        # to process and show.
 
-        return
-
-    def begin_carousel_advance(self,carousel):
+    def begin_carousel_advance(self,new_frame):
         # event - before showing an image
         '''
         OK! The analogy to my trusty Kodachrome projector is now thoroughly tortured.
         '''
-
-        self.ui.on_context_changed(carousel)
+        # This call sets up the image parameter(s) for
+        # the next set of invocations.
+        self._params.update_defaults(new_frame.params)
+        self.ui.on_context_changed(new_frame)
         return
 
     def get_func_name(self, cb):
@@ -146,7 +143,16 @@ class Tuner:
 
                 if self.__calling_main:
                     # invoke
-                    res = cb(**self.params.resolved_args)
+                    p = self._params.resolved_args
+                    if inspect.ismethod(cb):
+                        # if there is a bound self, we do
+                        # not need the one in the parms
+                        # otherwise, we do.
+                        # For some reason (TBD), going via the decorator
+                        # does not pick up the self binding, but regular
+                        # instantiation provides it.
+                        if "self" in p: del p["self"]
+                    res = cb(**p)
                 else:
                     # the red headed stepchild gets no arg love
                     res = cb(tuner=self.ui)
@@ -267,22 +273,22 @@ class Tuner:
         # user requested save,
         # or we are configured to save all
         # or this carousel is running headless (e.g. in a long grid search)
-        save = self.invocation.force_save or self.config.save_all or self.headless
+        save = self.invocation.force_save or self._config.save_all or self.headless
         # or we have an error
         save = save or self.invocation.errored
         # or any of the tags got set on this invocation
-        save = save or (len([tag for tag in self.config.tag_names if self.invocation[tag] == True]) > 0)
+        save = save or (len([tag for tag in self._config.tag_names if self.invocation[tag] == True]) > 0)
 
         if save:
             # save this invocation
             # in the file hive,
             # keyed by the args hash
             hive = None
-            if self.slot.title in self.carousel_data:
-                hive = self.carousel_data[self.slot.title]
+            if self.frame.title in self.carousel_data:
+                hive = self.carousel_data[self.frame.title]
             else:
                 # make a hive for this result
-                hive = self.carousel_data[self.slot.title] = {}
+                hive = self.carousel_data[self.frame.title] = {}
             # get rid of unseemly attributes
             del(self.invocation.force_save)
             hive[self.arg_hash] = self.invocation
@@ -298,7 +304,7 @@ class Tuner:
         self.save_last_invocation()
 
         # this is the current set of args
-        theta = self.params.theta
+        theta = self._params.theta
         self.arg_hash = (hl.md5((json.dumps(theta)).encode('utf-8'))).hexdigest()
 
         # initialize a complete invocation record
@@ -306,7 +312,7 @@ class Tuner:
         self.invocation = PropertyBag()
         # flags
         # tags go here - all set to false initially
-        self.invocation.update(self.config.default_tag_map)
+        self.invocation.update(self._config.default_tag_map)
         # whether there was an error - for convenience in querying
         self.invocation.errored = False
         # errors go here
@@ -337,6 +343,13 @@ class Tuner:
 
         return
     @property
+    def config(self) ->TunerConfig:
+        return self._config
+
+    @property
+    def params(self) ->Params:
+        return self._params
+    @property
     def results(self):
 
         return self.invocation.results
@@ -346,7 +359,7 @@ class Tuner:
         '''
         Always return a fresh copy of the user supplied image.
         '''
-        return np.copy(self.slot.image)
+        return np.copy(self.frame.image)
 
     @image.setter
     def image(self, val):
@@ -357,13 +370,13 @@ class Tuner:
         # However, since we're deciding which img it is,
         # call back up to the UI to do a display
         if self.__calling_main:
-            val = self.__insert_thumbnail(val, self.slot.tn_main)
-            self.slot.user_image_main = val
+            val = self.__insert_thumbnail(val, self.frame.tn_main)
+            self.frame.user_image_main = val
             self.ui.on_show_main(val)
         else:
             # the object setting this is the downstream func
-            val = self.__insert_thumbnail(val, self.slot.tn_down)
-            self.slot.user_image_down = val
+            val = self.__insert_thumbnail(val, self.frame.tn_down)
+            self.frame.user_image_down = val
             self.ui.on_show_downstream(val)
     def capture_error(self, func_name):
         self.invocation.errored = True
@@ -389,13 +402,13 @@ class Tuner:
         The temp file is prefixed with the name of the main target,
         and image currently being processed
         '''
-        if self.slot is None: return
+        if self.frame is None: return
         prefix = self.func_name
-        if self.slot.file_count <= 1 or suffix.endswith(".png"):
+        if self.frame.tray_length <= 1 or suffix.endswith(".png"):
             # results for a single file, or it's
             # an image file being saved.
             # Use the file name
-            it = self.slot.title
+            it = self.frame.title
         else:
             # we are going to be saving multiple
             # image results to this file, there's
@@ -406,7 +419,7 @@ class Tuner:
         # check if window currently has an image
         if it == prefix: it = None
         prefix = prefix + "." + it if not (it is None or it == "") else prefix
-        if not self.config.overwrite_file:
+        if not self._config.overwrite_file:
             # get a unique file name
             prefix += "."
             # we're just going to leave this file lying around
@@ -414,12 +427,12 @@ class Tuner:
                                 # makes it easy to find
                                 prefix=prefix
                                 ,suffix=suffix
-                                ,dir=self.config.wip_dir
+                                ,dir=self._config.wip_dir
                                 ,text=True
                                 )
         else:
             # we can overwrite the func_name.image_name file
-            full_path_name = os.path.join(self.config.wip_dir, prefix + suffix)
+            full_path_name = os.path.join(self._config.wip_dir, prefix + suffix)
             full_path_name = os.path.realpath(full_path_name)
         return full_path_name
 
@@ -448,10 +461,10 @@ class Tuner:
         the working directory set during initialization.
         '''
         fname = self.get_temp_file(suffix=".main.png")
-        cv2.imwrite(fname,self.slot.user_image_main)
-        if not self.slot.user_image_down is None:
+        cv2.imwrite(fname,self.frame.user_image_main)
+        if not self.frame.user_image_down is None:
             fname = fname.replace(".main.", ".downstream.")
-            cv2.imwrite(fname,self.slot.user_image_down)
+            cv2.imwrite(fname,self.frame.user_image_down)
         return
 
     @property
@@ -460,17 +473,17 @@ class Tuner:
         This image is inserted into the upper left hand corner of the main image. Keep it very small.
         '''
         if self.__calling_main:
-            return self.slot.tn_main
+            return self.frame.tn_main
         else:
-            return self.slot.tn_down
+            return self.frame.tn_down
 
     @thumbnail.setter
     def thumbnail(self,val):
         # this is the current thumbnail
         if self.__calling_main:
-            self.slot.tn_main = val
+            self.frame.tn_main = val
         else:
-            self.slot.tn_down = val
+            self.frame.tn_down = val
         return
 
     def __insert_thumbnail(self, mn, tn):
@@ -500,9 +513,8 @@ class Tuner:
 
     def begin(self,carousel):
         self.headless = False
-        with Carousel(self,carousel) as tray:
-            for slot in tray:
-                self.slot = slot
+        with carousel:
+            for self.frame in carousel:
                 ret  = self.invoke()
                 if not ret: break
         return ret
@@ -510,19 +522,20 @@ class Tuner:
     def grid_search(self, carousel, headless, esc_cancels_carousel = False, subset=None):
         self.headless = headless
         # the ranges that our trackbars have
-        ranges = self.params.get_ranges(subset)
-        with Carousel(self,carousel) as tray:
-            for slot in tray:
-                self.slot = slot
+        ranges = self._params.get_ranges(subset)
+        with carousel:
+            for self.frame in carousel:
                 # Bang on this image.
                 user_cancelled = False
                 # cart(esian) iterates over the complete set of values that this constellation of trackbars could have.
                 # It needs to be rebuilt for each file, as an iteration will exhaust it.
                 cart = it.product(*ranges.values())
                 for theta in cart:
+                    # work on this theta, we're only getting the
+                    # keys out of the ranges dict
                     args = {k:theta[i] for i,k in enumerate(ranges)}
                     # Update the trackbar values.
-                    self.params.theta = args
+                    self._params.theta = args
                     # Invoke target
                     user_cancelled = not self.invoke()
                     if user_cancelled : break #out of this image
