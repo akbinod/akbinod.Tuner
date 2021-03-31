@@ -31,7 +31,8 @@ class TunedFunction(DecoratorBase):
 		if self.tuner is None:
 			# First time through: create and kick off the tuner
 			self.tuner = TunerUI(self.target)
-			is_method = self.hacky_is_self(args[0])
+
+			is_method = self.hacky_is_self(args[0]) if len(args) > 0 else False
 			self.tuner.build_from_call(is_method, args, kwargs)
 
 			# Call the begin() method to start up the tuner gui

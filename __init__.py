@@ -4,5 +4,5 @@ from TunedFunction import TunedFunction
 from TunerUI import TunerUI
 # from CarouselContext import CarouselContext
 from PropertyBag import PropertyBag
-from constants import SaveStyle, Tags
+from constants import SaveStyle, Tags, Highlight
 from TunerConfig import TunerConfig

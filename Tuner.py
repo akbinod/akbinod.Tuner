@@ -20,6 +20,7 @@ from Params import Params
 from PropertyBag import PropertyBag
 from Carousel import Carousel
 from constants import *
+from Frame import Frame
 
 class Tuner:
     def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
@@ -408,7 +409,7 @@ class Tuner:
             # results for a single file, or it's
             # an image file being saved.
             # Use the file name
-            it = self.frame.title
+            it = self.frame.title if self.frame.title != Frame.default_title else None
         else:
             # we are going to be saving multiple
             # image results to this file, there's
@@ -497,7 +498,7 @@ class Tuner:
             bt = 1
             tl = (3,3)
             br = (tl[0] + tn.shape[1] + (2*bt), tl[1] + tn.shape[0] + (2*bt))
-            cv2.rectangle(mn,tl,br,HIGHLIGHT_COLOR,thickness=bt)
+            cv2.rectangle(mn,tl,br,Highlight.highlight,thickness=bt)
             # adjust for offset border
             tl = (tl[0] + bt, tl[1] + bt)
             x,x1,y,y1 = self.image_to_array_indices(tl,img_shape=tn.shape)

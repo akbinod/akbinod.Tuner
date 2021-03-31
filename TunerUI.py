@@ -61,7 +61,7 @@ class TunerUI:
 
     def __del__(self):
         cv2.destroyWindow(self.ctx.func_name)
-        if not self.__cb_downstream is None:
+        if not self.ctx.func_name_down is None:
             cv2.destroyWindow(self.ctx.func_name_down)
         pass
 
@@ -270,13 +270,22 @@ class TunerUI:
         state: perhaps in the next version, we'll show this
         delay: how long to wait for a keyboard interrupt in ms
         '''
-        ret = None
-        self.on_status_changed(comment)
-        self.on_show_main(image)
-        # what to do with state?
+        ret = True
+        try:
+            self.on_status_changed(comment)
+            self.on_show_main(image)
+            # topmost on
+            # cv2.setWindowProperty(self.ctx.func_name, cv2.WND_PROP_TOPMOST,cv2.WINDOW_GUI_EXPANDED)
+            # what to do with state?
 
-        if not delay is None: ret = cv2.waitKey(delay)
+            if not delay is None:
+                ret = cv2.waitKey(delay)
+                ret = False if ret == 27 else True
 
+        finally:
+            # topmost off
+            # cv2.setWindowProperty(self.ctx.func_name, cv2.WND_PROP_TOPMOST,cv2.WINDOW_GUI_EXPANDED)
+            pass
         return ret
 
     @property

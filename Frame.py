@@ -2,9 +2,10 @@ from PropertyBag import PropertyBag
 
 from PropertyBag import PropertyBag
 class Frame(PropertyBag):
+    default_title = "frame"
     def __init__(self) -> None:
         self.image = None
-        self.title = "frame"
+        self.title = Frame.default_title
 
         self.index =  0
         self.tray_length = 0

@@ -1,15 +1,27 @@
 from enum import Enum, auto, Flag
 import cv2
+from numpy.lib.shape_base import _replace_zero_by_x_arrays
 
 # statics
-HIGHLIGHT_COLOR = (173,255,47)
+
+# HIGHLIGHT_COLOR = (173,255,47)
 HIGHLIGHT_THICKNESS_LIGHT = 1
 HIGHLIGHT_THICKNESS_HEAVY = 2
 PUT_TEXT_FONT = cv2.FONT_HERSHEY_PLAIN
 PUT_TEXT_SMALL = 0.7
 PUT_TEXT_NORMAL = 1.0
 PUT_TEXT_HEAVY = 2.0
-
+# HIGHLIGHT_BLUE = (255,153,51)
+# HIGHLIGHT_GREEN = (153,255,51)
+# HIGHLIGHT_RED = (51,51,255)
+class Highlight(Enum):
+    highlight = (173,255,47)
+    blue = (255,153,51)
+    green = (153,255,51)
+    red = (51,51,255)
+    white = (255,255,255)
+    gray = (153,153,153)
+    black = (0,0,0)
 class Tags(Enum):
     '''
     These are keycodes (macOS). The following are available for users to map.
