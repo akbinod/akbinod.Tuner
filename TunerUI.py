@@ -108,7 +108,7 @@ class TunerUI:
 
     def on_status_changed(self, val):
         try:
-            cv2.displayStatusBar(self.ctx.func_name,val,30_000)
+            cv2.displayStatusBar(self.ctx.func_name,val,60_000)
         except:
             pass
 
@@ -328,6 +328,12 @@ class TunerUI:
     def image(self, val):
         self.ctx.image = val
 
+    @property
+    def status(self):
+        return ""
+    @status.setter
+    def status(self,val):
+        self.on_status_changed(val)
     @property
     def thumbnail(self):
         return self.ctx.thumbnail
