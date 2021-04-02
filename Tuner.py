@@ -42,16 +42,28 @@ class Tuner:
         self._params = params
 
         # primary function to tune
-        self.func_main = func_main
+        if func_main is None:
+            # when this is none, the user just wants to
+            # use the show features - not to tune as such
+            self.func_main = self.null_route
+            # set up a null frame
+            c = Carousel(self,None,None)
+            self.frame = next(c)
+        else:
+            self.func_main = func_main
         # downstream function to call
         self.func_down = func_downstream
 
         # get something set up to check against
         self.invocation = None
+        # this safe default needs to be established here
+        self.__calling_main = True
         # other state variables are initialized in before_invoke
 
         return
-
+    def null_route(*args, **kwargs):
+        # this should be good enough to be a function sink
+        return
     def on_enter_carousel(self,carousel):
         self.carousel = carousel
         self.frame = None

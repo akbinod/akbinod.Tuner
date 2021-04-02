@@ -26,7 +26,9 @@ class VideoFrameGenerator():
         self.length = self.video.get(cv2.CAP_PROP_FRAME_COUNT)
 
     def __iter__(self):
+        return self
 
+    def __next__(self):
         def read():
             r, f = self.video.read()
             if not r:
@@ -73,7 +75,6 @@ class VideoFrameGenerator():
         # done iterating our video
         self.video.release()
         return
-
     def reset(self):
         # video does not support this
         return

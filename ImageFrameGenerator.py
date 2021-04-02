@@ -23,6 +23,9 @@ class ImageFrameGenerator():
 
     def __iter__(self):
 
+        return self
+
+    def __next__(self)->Frame:
         while self.index < self.length - 1:
             self.index += 1
             frame = Frame()
@@ -57,8 +60,6 @@ class ImageFrameGenerator():
             yield frame
 
         # done iterating our files
-        return
-
 
     def reset(self):
         self.index = -1

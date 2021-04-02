@@ -18,6 +18,9 @@ class TunerUI:
         func_main:  Required. The main target of tuning.
         func_downstream: Optional. Similar to func, this is a downstream function to be called after func.
         '''
+        # Initialize some safe defaults here
+        self.ctx = None
+        self.headless = False
 
         # set up config
         self.config = TunerConfig()
@@ -171,6 +174,7 @@ class TunerUI:
         return not cancel
 
     def on_context_changed(self, new_frame):
+        if self.ctx is None: return
         self.frame = new_frame
         title = new_frame.title + f" [{new_frame.index} of {new_frame.tray_length}]"
         cv2.setWindowTitle(self.ctx.func_name,title)

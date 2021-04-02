@@ -41,13 +41,22 @@ class Params():
         self.tuned_params = {}
         self.target_params = {}
         self.target_defaults = {}
+        self.aspec = aspec = None
+
+        # put this away here - it will get picked up
+        # when packing kwargs
+        self.target_defaults["tuner"] = self.ui
+        # if this is null routing, there's not a lot to do
+        if func is None: return
 
         # Once the parameters this tracks are fully identified, they should
         # fall into one of two categories: args, and locals. This is done
         # by comparing tracked parameters to the argspec for the target function.
+
         self.aspec = aspec = inspect.getfullargspec(func)
         # get the args we can do something about- i.e., the NOT var args
         # get the positional args
+
         if not aspec.args is None: self.target_params = aspec.args.copy()
         # add in the keyword only args : the ones after " *,"
         self.target_params.extend(aspec.kwonlyargs)
@@ -88,10 +97,6 @@ class Params():
         if not "tuner" in self.target_params:
             # the user needs to set up a param called tuner
             raise ValueError(f"There must be a parameter to the tuned function called 'tuner'.")
-        else:
-            # put this away here - it will get picked up
-            # when packing kwargs
-            self.target_defaults["tuner"] = self.ui
 
 
         # DO NOT get rid of 'self' here

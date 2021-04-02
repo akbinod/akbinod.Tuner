@@ -39,6 +39,10 @@ class Carousel():
         self.tuner.on_exit_carousel(self)
 
     def __iter__(self):
+
+        return self
+
+    def __next__(self)->Frame:
         '''
         Generator. Iterate over the user supplied carousel.
         '''
@@ -54,27 +58,26 @@ class Carousel():
             # to what it will
             self.frame = Frame()
             self.tuner.begin_carousel_advance(self.frame)
-            yield self.frame
+            return self.frame
             # # have to do this ourselves since we
             # # don't actually have a generator backing
             # # this up.
             # raise StopIteration()
         else:
-            for self.frame in self.frame_gen:
-                # map generated images to the param list
-                # filling the params from left to right
-                # if there are more images than params, ignore them
-                # if there are fewer images than there are params, ignore params
-                self.frame.params = {
-                                self.params[i]:img
-                                for i, img in enumerate(self.frame.images)
-                                if i < len(self.params)
-                                }
+            self.frame = next(self.frame_gen)
+            # for self.frame in self.frame_gen:
+            # map generated images to the param list
+            # filling the params from left to right
+            # if there are more images than params, ignore them
+            # if there are fewer images than there are params, ignore params
+            self.frame.params = {
+                            self.params[i]:img
+                            for i, img in enumerate(self.frame.images)
+                            if i < len(self.params)
+                            }
 
-                self.tuner.begin_carousel_advance(self.frame)
-                yield self.frame
-
-        return
+            self.tuner.begin_carousel_advance(self.frame)
+            return self.frame
 
     def reset(self):
         self.frame = None
