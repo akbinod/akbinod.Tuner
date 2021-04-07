@@ -1,6 +1,6 @@
-from PropertyBag import PropertyBag
+from core.PropertyBag import PropertyBag
 
-from PropertyBag import PropertyBag
+from core.PropertyBag import PropertyBag
 class Frame(PropertyBag):
     default_title = "frame"
     def __init__(self) -> None:

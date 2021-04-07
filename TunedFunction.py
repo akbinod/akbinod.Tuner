@@ -2,7 +2,7 @@
 import functools
 import inspect
 import numpy as np
-from DecoratorBase import *
+from core.DecoratorBase import *
 from TunerUI import TunerUI
 
 class TunedFunction(DecoratorBase):
@@ -11,7 +11,7 @@ class TunedFunction(DecoratorBase):
 		This is the Decorator version of Tuner. Please see the readme for general use guidance.
 		'''
 		self.tuner = None
-		self.partial = None
+		self.inits = kwargs
 		super().__init__(*args, name = "ak.binod.TunedFunction", verbose=True, output_to=OutputTo.Console)
 
 		return
@@ -33,7 +33,7 @@ class TunedFunction(DecoratorBase):
 			self.tuner = TunerUI(self.target)
 
 			is_method = self.hacky_is_self(args[0]) if len(args) > 0 else False
-			self.tuner.build_from_call(is_method, args, kwargs)
+			self.tuner.build_from_call(is_method, self.inits, args, kwargs)
 
 			# Call the begin() method to start up the tuner gui
 			# Tuner will take care of the args

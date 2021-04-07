@@ -1,4 +1,4 @@
-from param import param, bool_param, dict_param, list_param
+from core.param import param, bool_param, dict_param, list_param
 import inspect
 
 
@@ -116,7 +116,7 @@ class Params():
         else:
             return super().__getattr__(key)
 
-    def build_from_call(self, call_is_method, call_args, call_kwargs):
+    def build_from_call(self, call_is_method, tuner_kwargs, call_args, call_kwargs):
         '''
         This is called from the middle of an intercepted call to
         configure the params on a tuner. Not to be called from userland.

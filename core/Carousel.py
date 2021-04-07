@@ -1,12 +1,11 @@
-from Frame import Frame
+from core.Frame import Frame
 import cv2
 import os
 import numpy as np
-from PropertyBag import PropertyBag
-from constants import *
-from VideoFrameGenerator import VideoFrameGenerator
-from ImageFrameGenerator import ImageFrameGenerator
-from Frame import Frame
+from core.PropertyBag import PropertyBag
+from core.constants import *
+from core.VideoFrameGenerator import VideoFrameGenerator
+from core.ImageFrameGenerator import ImageFrameGenerator
 
 class Carousel():
     def __init__(self, tuner, params:list, frame_gen) -> None:

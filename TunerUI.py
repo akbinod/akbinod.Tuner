@@ -1,12 +1,12 @@
-from Carousel import Carousel
+from core.Carousel import Carousel
 import numpy as np
 import cv2
 
 from TunerConfig import TunerConfig
-from Tuner import Tuner
-from Params import Params
-from Carousel import *
-from constants import *
+from core.Tuner import Tuner
+from core.Params import Params
+from core.Carousel import *
+from core.constants import *
 
 class TunerUI:
     def __init__(self, func_main, *
@@ -225,7 +225,7 @@ class TunerUI:
 
         return ret
 
-    def build_from_call(self, call_is_method:bool, call_args, call_kwargs):
+    def build_from_call(self, call_is_method:bool, param_kwargs, call_args, call_kwargs):
         '''
         This is meant for use by the TunedFunction decorator - not
         for direct use by userland code.
@@ -236,7 +236,7 @@ class TunerUI:
         args    : should contain the args from your invocation
         kwargs  : ditto
         '''
-        return self._parms.build_from_call(call_is_method, call_args, call_kwargs)
+        return self._parms.build_from_call(call_is_method, param_kwargs, call_args, call_kwargs)
 
         return
 

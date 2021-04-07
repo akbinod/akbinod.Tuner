@@ -1,14 +1,14 @@
 
 <H1>akbinod.Tuner</H1>
-Binod Purushothaman : binod@gatech.edu
+Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021
 <H3>Why bother?</H3>
-Because 6 ines of code will get you a pretty decent hyper-parameter Tuner. 6 lines of your code and this component.
+Because 2 ines of code (and this component) will get you a pretty decent hyper-parameter Tuner.
 <br></br>
-If you're studying Computer Vision, hyper-parameter tuning is probably causing you some angst. I wrote this while in the middle of PS-3 and 4 ("yay OMS"). I've included some sample code that shows you how to use Tuner, and a barebones example that illustrates using Tuner to adjust your pre-processing. Please do look at the section on required pip installs towards the end of this document.
+If you're studying Computer Vision, hyper-parameter tuning is probably causing you some angst. I wrote this while in the OMS-CS program at GA Tech - during 6476. I've included some sample code that shows you how to use Tuner, and a barebones example that illustrates using Tuner to adjust your pre-processing. Please do look at the section on required pip installs towards the end of this document.
 
 ### How does it work?
-Tuner hooks into your code. Here is a quick example.
+Here is a quick example.
 
 ```{python}
 
@@ -25,17 +25,15 @@ Including Tuner in your workflow, this becomes:
 #new import
 import TunedFunction
 
-#new decorator
+#new decorator, and parameter
 @TunedFunction()
 def find_circles(image, radius, tuner=None)
-#new parameter
+
 
 	#your original implementation
 
 	# new lines of code before you return
-    if not tuner is None:
-        tuner.results = results
-        tuner.image = result_image
+    if not tuner is None: tuner.image = result_image
 
     return results
 

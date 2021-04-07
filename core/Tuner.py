@@ -16,11 +16,11 @@ import hashlib as hl
 
 from TunerConfig import TunerConfig
 # from TunerUI import TunerUI
-from Params import Params
-from PropertyBag import PropertyBag
-from Carousel import Carousel
-from constants import *
-from Frame import Frame
+from core.Params import Params
+from core.PropertyBag import PropertyBag
+from core.Carousel import Carousel
+from core.constants import *
+from core.Frame import Frame
 
 class Tuner:
     def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
