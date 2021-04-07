@@ -5,8 +5,8 @@ import copy
 class TunerConfig():
 # Change these if you have specific
     # samples you like to work with
-    img_sample_color = "./images/tuner_sample_color.png"
-    img_sample_bw = "./images/tuner_sample_bw.jpg"
+    img_sample_color = "./tuner_sample_color.png"
+    img_sample_bw = "./tuner_sample_bw.jpg"
 
     output_dir = "./wip"
     # why bother looking at uninteresting stuff, and let's preserve old runs

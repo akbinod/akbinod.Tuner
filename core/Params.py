@@ -94,7 +94,9 @@ class Params():
 
         # do the following validation after everything else
         # throw if 'tuner' is not found in the argset
-        if not "tuner" in self.target_params:
+        if "tuner" in self.target_params:
+            self.target_defaults["tuner"] = self.ui
+        else:
             # the user needs to set up a param called tuner
             raise ValueError(f"There must be a parameter to the tuned function called 'tuner'.")
 
@@ -202,7 +204,7 @@ class Params():
         # signature, and omit it from the set up call.
         # Therefore, if it appears here, it's fair game as a tunable param
         usable = [parm for parm in call_kwargs if parm in self.target_params]
-        for parm in usable: create_param(parm,call_kwargs[param])
+        for parm in usable: create_param(parm,call_kwargs[parm])
 
         # done defining what to track
 

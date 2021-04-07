@@ -1,6 +1,5 @@
 from enum import Enum, auto, Flag
 import cv2
-from numpy.lib.shape_base import _replace_zero_by_x_arrays
 
 # statics
 
