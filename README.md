@@ -4,6 +4,7 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 <H3>Why?</H3>
 If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a look at the example below, and read through to the first stopping point (about 5 minutes in). Try it out on your code next, and If the UX works for you, come back to read the rest of this document.
+
 ```{python}
 # here's your existing code
 def find_circles(image, radius):
@@ -12,7 +13,9 @@ def find_circles(image, radius):
 
     return results
 ```
+
 Including Tuner in your workflow, this becomes:
+
 ```{python}
 #new import
 import TunedFunction
@@ -31,7 +34,7 @@ def find_circles(image, radius, tuner=None)
 
 The changes you need to make (besides import):
 <ol>
-<li>Decorate the tuning <b>target</b> (e.g., <code>find_circles()</code>) with <code>@TundedFunction</code> </li>
+<li>Decorate the tuning <b>target</b> (e.g., <code>find_circles()</code>) with <code>@TunedFunction</code> </li>
 <li>Modify <b>target</b> to take a new parameter: <code>tuner=None</code></li>
 <li>set <code>tuner.image</code> before you return; this shows the modified image in the Tuner GUI.
 </ol>
@@ -40,11 +43,11 @@ Kicking off the tuning process in this example, is the following line of code:
 </p>
 
 ``` {python}
-# trackbars go between 0 and 50
+# trackbar goes between 0 and 50
 find_circles(image, 50)
 # OR
-# (trackbar has a min of 5, max of 50, and defaults to 10 at the start)
-find_circles(image, (50,5,10))
+# trackbar has a min of 5, max of 50
+find_circles(image, (50,5))
 ```
 
 <b>And that's pretty much it! This is all you need to know to get a tuning UI up and running.</b>
