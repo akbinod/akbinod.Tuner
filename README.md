@@ -61,7 +61,7 @@ The second call is taken to mean that the trackbar should have <code>max=50, min
 You're at a good stopping point if you're happy receiving ints as args. Read on if you would like to receive json, etc.
 
 <H2>@TunedFunction() Decorator</H2>
-Implict Tuner instantiation. Although you do give up some flexibility, and a few features, this is the quickest way of getting started with tuning your CV code.
+Implict Tuner instantiation. Although you do give up some flexibility, this is the quickest way of getting started with tuning your CV code.
 <H3>Usage</H3>
 
 <ul>
@@ -73,14 +73,13 @@ Implict Tuner instantiation. Although you do give up some flexibility, and a few
 	- Adjust the trackbars.
 	- Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.
 	- Update <code>tuner</code> with the processed image before you return from `target`. This refreshes the display in Tuner's GUI.
-	- Remain in the tuning loop until you keyboard exit out of the loop.
--When you are satisfied with your results, press F3 to save the last args to `target`. Tuner will also save whatever you last set tuner.results to. Typically, these params would be the various hyper parameter values you need for your project. Your results, params need to be json friendly, so np.ndarrays, and other values that the json.writes() will not handle will be skipped when serializing.
-
+	- Remain in the tuning loop until you keyboard exit out of the loop. Please see 'saving' below.
 <li>End your tuning session by pressing the escape (or any non function key)</li>
 </ul>
-<p>
-To restore normal operation of your function, comment out or delete the @TunedFunction decorator.
-</p>
+</ul>
+
+To restore normal operation of your function, comment out or delete the @TunedFunction() decorator.
+
 <H3>
 Tracked Parameters/What is tuned?
 </H3>
@@ -152,18 +151,18 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 ```
 </ul>
 
-### The Menu/Ops within Tuner
-F1 - runs a grid search on the parameters
-F2 - saves the image
-F3 - saves your Invocation Tree which consists of frames, args, results, execution errors, and tags
-The next three (customizable, see the source) save your invocation after adding a tag. Tags can be anything you want them to be. Modify constants.py and update the `Tags` enum. Code comments there will explain your options.
+### TunerUI Menu
+F1 : runs a grid search on the parameters
+F2 : saves the image
+F3 : saves your Invocation Tree (see bleow)
+F8 - F10 : tags and saves your Invocation Tree (see below).
 
 #### Saving Invocation Trees
 The basic idea behind Tuner is:
 <ol>
 <li>...hook up Tuner and invoke your function to tune it</li>
 <li>...save your observations (tags) along with theta</li>
-<li>...and finally, come back and analyse your output file to narrow in on your ideal theta</li>
+<li>...and finally, come back and analyse the Invocation Tree saved to your output file to narrow in on your ideal theta</li>
 </ol>
 
 Saving behavior is determined principally by a couple of statics in TunerConfig.
@@ -198,7 +197,7 @@ The name of the output file begins with the function being tuned; and within the
 </ul>
 
 #### Tagging Theta
-The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close'. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
+The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close', the defaults you see in the UI. You could customize this. Modify constants.py and update the `Tags` enum. Code comments there will explain your options. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
 
 
 #### Grid Search
