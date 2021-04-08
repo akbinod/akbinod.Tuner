@@ -4,7 +4,7 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 
 <H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a quick look at the first example below, and read through to the first stopping point (about 5 minutes in). Try it out on your code next, and If the UX works for you, then come back to read the rest of this document.
+If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a quick look at the first example below, and read through to the first stopping point (about 5 minutes in). Try it out on your code next, and If the UX works for you, come back to read the rest of this document.
 
 ```{python}
 
@@ -26,10 +26,10 @@ import TunedFunction
 def find_circles(image, radius, tuner=None)
 
 
-	#your original implementation
+#your original implementation
 
-	# new line of code before you return
-    if not tuner is None: tuner.image = result_image
+# new line of code before you return
+    if not tuner is None: tuner.image = updated_image
 
     return results
 
