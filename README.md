@@ -26,7 +26,6 @@ import TunedFunction
 def find_circles(image, radius, tuner=None)
 
 
-#your original implementation
 
 # new line of code before you return
     if not tuner is None: tuner.image = updated_image
@@ -206,7 +205,7 @@ This runs through a cartesian product of the parameter values you have set up. `
 With explicit instantion, you can set how long Tuner waits, whether the op is headless etc.
 
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
-<H2>The Tuner Class</H2>
+<H2>TunerUI Class</H2>
 
 Most of the basics have been detailed above.
 
