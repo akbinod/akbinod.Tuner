@@ -50,7 +50,7 @@ find_circles(image, 50)
 find_circles(image, (50,5))
 ```
 
-<b>And that's pretty much it! This is all you need to know to get a tuning UI with built in grid search up and running.</b>
+<b>And that's pretty much it! This is all you need to know to get a tuning UI (with grid search) up and running.</b>
 
 You're at a good stopping point if you're happy receiving ints as args. Read on if you would like to receive json, etc.
 
