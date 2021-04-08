@@ -36,8 +36,8 @@ class Tags(Enum):
     F9 - 101    in use by Tuner, but can be remapped
     F10 - 109   in use by Tuner, but can be remapped
     '''
-    exact   = 109 # F10
-    debug   = 101 # F9
+    avoid   = 109 # F10
+    exact   = 101 # F9
     close   = 100 # F8
 
 class SaveStyle(Flag):
