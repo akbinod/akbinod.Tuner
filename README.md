@@ -4,7 +4,7 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 
 <H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Copying 4 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a quick look at the first example below, try it out on your code, and then come back to the rest of this document.
+If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a quick look at the first example below, and read through to the first stopping point (about 5 minutes in). Try it out on your code next, and If the UX works for you, then come back to read the rest of this document.
 
 ```{python}
 
@@ -68,7 +68,7 @@ Implict Tuner instantiation. Although you do give up some flexibility, and a few
 <li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code> . There should be no other decorators on the function.
 <li>Begin your tuning session by calling your function. This is the <b>launch call</b>.</li>
 
-- TunedFunction takes over and creates a Tuner GUI.
+- TunedFunction creates an instance of TunerUI (passed to `target` via the `tuner` param) .
 - Switch to the Tuner GUI:
 	- Adjust the trackbars.
 	- Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.
@@ -82,10 +82,12 @@ Implict Tuner instantiation. Although you do give up some flexibility, and a few
 To restore normal operation of your function, comment out or delete the @TunedFunction decorator.
 </p>
 <H3>
-What gets tuned?
+Tracked Parameters/What is tuned?
 </H3>
 Positional and keyword parameters (not varargs, or varkwargs) in your function signature are candidates for tuning. If your launch call passes an int, boolean, list or dict to any of these, then that parameter is tuned; the others are passed through to your function unchanged. Images, e.g., can't be tuned - so np.ndarray arguments are passed through to your function unchanged. Tuples of 3 ints also work, and are interpreted in a special way.
 <p>
+
+If you want to skip tuning some parameters in your `target's` signature, set default values for them, and drop them from your launch call. A param is not tuned, if an arg is not passed to it from your launch call.
 
 It's the <i>type of the argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters. Each of the following launch calls would have a different effect:
 
@@ -153,38 +155,51 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 ### The Menu/Ops within Tuner
 F1 - runs a grid search on the parameters
 F2 - saves the image
-F3 - saves your invocation. An invocation has a set of args, results, execution errors, and tags
+F3 - saves your Invocation Tree which consists of frames, args, results, execution errors, and tags
 The next three (customizable, see the source) save your invocation after adding a tag. Tags can be anything you want them to be. Modify constants.py and update the `Tags` enum. Code comments there will explain your options.
 
-#### Tagging Theta
-The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close'. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
-
-#### Saving Theta
+#### Saving Invocation Trees
 The basic idea behind Tuner is:
 <ol>
-<li>...hook up Tuner to your code, and run your code to tune</li>
-
+<li>...hook up Tuner and invoke your function to tune it</li>
 <li>...save your observations (tags) along with theta</li>
 <li>...and finally, come back and analyse your output file to narrow in on your ideal theta</li>
 </ol>
 
-Saving behavior is determined principally by a couple of settings in TunerConfig.
-<p>**TunerConfig.output_dir**: by default this is set to `./wip` Set this to whatever you like before you use the other functions of Tuner.</p>
-<p>**TunerConfig.save_style**: This should be set to some valid combination of the flags found in `constants.SaveStyles`. The default is to overwrite the contents of the output file on each run, and to only save when explicitly asked to. That said, any time you tag theta, or you have an execution error, that invocation is saved to the output file regardless of whether you asked for it to be saved, or not.</p>
+Saving behavior is determined principally by a couple of statics in TunerConfig.
+<p><b>TunerConfig.output_dir</b>: by default this is set to `./wip` Change this before you use the other functions of Tuner.</p>
+<p><b>TunerConfig.save_style</b>: This should be set to some valid combination of the flags found in `constants.SaveStyles`. The default is to overwrite the contents of the output file on each run, and to only save when explicitly asked to. </p>
+<p>The following are always tracked, although only saved to file under certain circumstances:
 <ul>
-<li>The name of the output file begins with the function being tuned; and within the file, this is approximately the tree structure:</li>
+<li><b>args</b>: The set of args to an invocation.</li>
+<li><b>results</b>: This could be explicitly set by your code like so <code>tuner.results=...</code>. If you do not set this value, tuner captures the values returned by <code>target</code> and saves them as long as they are json serializable</li>
+<li><b>errored</b>: Whether an error took place during <code>target</code> invocation.</li>
+<li><b>error</b>: These are execution errors encountered during <code>target</code> invocation. BTW, the most recent call is first in this formatted list, not last as you would expect from typical python output.</li>
+<li><b> [insert your tag here] </b>: A complete list of all the custom tags with the value set to false, unless you explicitly tag the invocation</li>
+</ul>
+These tracked values are pushed into the output file when:
 <ul>
-<li>The name/title of the image file from your carousel (see explicit instantiation below) </li>
+<li>You explicitly save  - F3.</li>
+<li>You tag an invocation.</li>
+<li>An error was encountered during the invocation .</li>
+</ul>
+The name of the output file begins with the function being tuned; and within the file, this is approximately the tree structure:
 <ul>
-<li>The invocation (the key/label is the md5 hash of theta)</li>
+<li>The title of the image from your carousel (see explicit instantiation below), defaulting to 'frame' </li>
 <ul>
-<li>args (theta)</li>
-<li>results (saved via tuner.results=...)</li>
-<li>each of the custom tags that you apply</li>
+<li>The invocation key (what you see is the md5 hash of theta)</li>
+<ul>
+<li>args (contains each element of theta)</li>
+<li>results (contains the saved or captured results of <code>target</code>)</li>
+<li>each of the custom tags that you apply via the Tuner GUI</li>
 </ul>
 </ul>
 </ul>
 </ul>
+
+#### Tagging Theta
+The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close'. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
+
 
 #### Grid Search
 This runs through a cartesian product of the parameter values you have set up. `target` is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta. Typically, you would tag each invocation while Tuner waits for input, or simply "press any key" your way through the cart (cartesian product).
@@ -194,9 +209,15 @@ With explicit instantion, you can set how long Tuner waits, whether the op is he
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
 <H2>The Tuner Class</H2>
 
-Most of the basics have been detailed above. With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, and having arguments curried into your function. but there are added features you can access. If you like the UX of `@TunedFunction`, see the benefits section down below to determine if it's worth it to wade through the rest of this.
+Most of the basics have been detailed above.
+
+With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, and having arguments curried into your function. but there are added features you can access. If you like the UX of `@TunedFunction`, see the benefits section down below to determine if it's worth it to wade through the rest of this.
+
+Instead of TunedFunction, you import TunerUI and TunerConfig. TunerUI is the facade you work with. You could ignore TunerConfig if the default settings work for you.
+
 The basic pattern is about the same:
-1. accept a `tuner` param with the default value of None...
+1. import TunerUI.
+2. accept a `tuner` param with the default value of None...
 2. ...do your thing...
 3. set `tuner.image` to the processed image before you return...
 4. optionally - set `tuner.results` to something that is json serializable before you return
@@ -231,21 +252,21 @@ Which is basically what you can do with <code>@TunedFunction</code> already, and
 </ul>
 </ol>
 
-You cannot mix Tuner with partials and decorators - just the func please. If you do, things will blow up unpredictably.
-
+You cannot mix Tuner with partials and decorators (things blow up unperdictably) - just the func please.
 
 Besides the above, it's all pretty much the same. You do have access to a few additional methods, and the docstrings should explain those. Some of the gains are:
 <ul>
 <li>Being able to tune hyper-parameters without having them be parameters to your function. This keeps your signatures what your auto-grader expects, which is always pleasant when you have just one auto grader submission left until 3:00am :)</li>
-<li>Process a stack of images, remembering settings between images.</li>
-<li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> from within your target function). This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction</code>, but then it isn't 6 lines of code anymore, is it...</li>
+<li>Process a carousel of images, remembering settings between images.</li>
+<li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> from within your target function). This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction</code> as well.</li>
 <li>View the results of two processes in side by side windows. A few use cases for side-by-side comparison of images:
 <ul>
 <li>your pre-processing output in main; and traffic sign identification output in downstream;</li>
 <li>Template Matching output in one vs. Harris Corners output in the other;</li>
 <li>what your noble code found, vs. what the built in CV functions found (I find this view particularly revealing; also, character building).</li>
 </ul>
-<li>Access to features of Tuner like <code>tuner.grid_search()</code> etc. Please see the dostrings for more information. A couple of the more interesting static methods are <code>tuner_from_json()</code> and <code>minimal_preprocessor()</code>.
+<li>Controlling aspects of <code>tuner.grid_search()</code>. Please see the dostrings for more information. </li>
+<li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
 <li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of Tuner.</li>
 </ul>
 
