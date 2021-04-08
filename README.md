@@ -169,8 +169,8 @@ The basic idea behind Tuner is:
 </ol>
 
 Saving behavior is determined principally by a couple of settings in TunerConfig.
-**TunerConfig.output_dir**: by default this is set to `./wip` Set this to whatever you like before you use the other functions of Tuner.
-**TunerConfig.save_style**: This should be set to some valid combination of the flags found in `constants.SaveStyles`. The default is to overwrite the contents of the output file on each run, and to only save when explicitly asked to. That said, any time you tag theta, or you have an execution error, that invocation is saved to the output file regardless of whether you asked for it to be saved, or not.
+<p>**TunerConfig.output_dir**: by default this is set to `./wip` Set this to whatever you like before you use the other functions of Tuner.</p>
+<p>**TunerConfig.save_style**: This should be set to some valid combination of the flags found in `constants.SaveStyles`. The default is to overwrite the contents of the output file on each run, and to only save when explicitly asked to. That said, any time you tag theta, or you have an execution error, that invocation is saved to the output file regardless of whether you asked for it to be saved, or not.</p>
 <ul>
 <li>The name of the output file begins with the function being tuned; and within the file, this is approximately the tree structure:</li>
 <ul>
