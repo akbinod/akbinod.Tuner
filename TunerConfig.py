@@ -10,7 +10,7 @@ class TunerConfig():
 
     output_dir = "./wip"
     # why bother looking at uninteresting stuff, and let's preserve old runs
-    save_style = SaveStyle.tagged | SaveStyle.overwrite
+    save_style:SaveStyle = SaveStyle.tagged | SaveStyle.overwrite
 
     def __init__(self) -> None:
         # sort out where we will save results, defaulting to cwd

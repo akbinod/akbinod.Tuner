@@ -1,14 +1,10 @@
 
 <H1>akbinod.Tuner</H1>
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
-<br>Georgia Tech CS-6476: Spring 2021
-<H3>Why bother?</H3>
-Because 2 ines of code (and this component) will get you a pretty decent hyper-parameter Tuner.
-<br></br>
-If you're studying Computer Vision, hyper-parameter tuning is probably causing you some angst. I wrote this while in the OMS-CS program at GA Tech - during 6476. I've included some sample code that shows you how to use Tuner, and a barebones example that illustrates using Tuner to adjust your pre-processing. Please do look at the section on required pip installs towards the end of this document.
+<br>Georgia Tech CS-6476: Spring 2021<br>
 
-### How does it work?
-Here is a quick example.
+<H3>Why?</H3>
+If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Copying 4 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a quick look at the first example below, try it out on your code, and then come back to the rest of this document.
 
 ```{python}
 
@@ -25,14 +21,14 @@ Including Tuner in your workflow, this becomes:
 #new import
 import TunedFunction
 
-#new decorator, and parameter
+#new decorator, and `tuner` parameter
 @TunedFunction()
 def find_circles(image, radius, tuner=None)
 
 
 	#your original implementation
 
-	# new lines of code before you return
+	# new line of code before you return
     if not tuner is None: tuner.image = result_image
 
     return results
@@ -42,8 +38,10 @@ def find_circles(image, radius, tuner=None)
 The changes you need to make:
 
 <ol>
-<li>Modify the tuning <b>target</b> (<code>find_circles()</code> in the example above) to accept a new parameter: <code>tuner=None</code></li>
-<li>set <code>tuner.image</code> and <code>tuner.results</code> to show them in the Tuner GUI.
+<li>Include this component in your project.</li>
+<li>Decorate the tuning <b>target</b> (<code>find_circles()</code> in the example above) with <code>@TundedFunction</code> </li>
+<li>Modify the <b>target</b> to take a new parameter: <code>tuner=None</code></li>
+<li>set <code>tuner.image</code> when you're done to show the modified image in the Tuner GUI.
 </ol>
 <p>
 Kicking off the tuning process in this example, is the following line of code:
@@ -55,26 +53,28 @@ find_circles(image, 50)
 find_circles(image, (50,5,10))
 ```
 
-The first call above creates a trackbar that lets you slide the radius between 0 and 50.
+The first example above creates a trackbar that lets you slide the radius between 0 and 50.
 The second call is taken to mean that the trackbar should have <code>max=50, min=5, default = 10</code>. The trackbar is set to <code>default</code> when you first see the GUI.
 
-<b>And that's pretty much it! This is all you need to know to get up and running; and this is all you need if you're happy receiving ints as args. Read on if you would like to receive json, etc.
-</b>
+<b>And that's pretty much it! This is all you need to know to get a tuning UI up and running.</b>
+
+You're at a good stopping point if you're happy receiving ints as args. Read on if you would like to receive json, etc.
+
 <H2>@TunedFunction() Decorator</H2>
 Implict Tuner instantiation. Although you do give up some flexibility, and a few features, this is the quickest way of getting started with tuning your CV code.
 <H3>Usage</H3>
 
 <ul>
-<li>Decorate the function you want to tune (referred to as <b>target</b> or tuned function) with <code>@TunedFunction()</code> . There should be no other decorators on the function, otherwise <code>@TunedFunction()</code> will fail. See the quick example above.</li>
+<li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code> . There should be no other decorators on the function.
 <li>Begin your tuning session by calling your function. This is the <b>launch call</b>.</li>
 
 - TunedFunction takes over and creates a Tuner GUI.
 - Switch to the Tuner GUI:
 	- Adjust the trackbars.
 	- Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.
-	- Update <code>tuner</code> with results, and the processed image (see example above) before you return from the tuning call.This refreshes the display in Tuner's GUI.
+	- Update <code>tuner</code> with the processed image before you return from `target`. This refreshes the display in Tuner's GUI.
 	- Remain in the tuning loop until you keyboard exit out of the loop.
--When you are satisfied with your results, press F3 to save those results. Tuner will save the last used values of the tuned params, as well as whatever you set in tuner.results. Typically, these params would be the various hyper parameter values you need for your project. Your results need to be json friendly, so don't pass in np.ndarrays, and other values that the json module will not handle.
+-When you are satisfied with your results, press F3 to save the last args to `target`. Tuner will also save whatever you last set tuner.results to. Typically, these params would be the various hyper parameter values you need for your project. Your results, params need to be json friendly, so np.ndarrays, and other values that the json.writes() will not handle will be skipped when serializing.
 
 <li>End your tuning session by pressing the escape (or any non function key)</li>
 </ul>
@@ -84,38 +84,24 @@ To restore normal operation of your function, comment out or delete the @TunedFu
 <H3>
 What gets tuned?
 </H3>
-Short answer: some of the parameters to your function. Those that meet the criteria below get tuned, the others are passed through to your function unchanged.
+Positional and keyword parameters (not varargs, or varkwargs) in your function signature are candidates for tuning. If your launch call passes an int, boolean, list or dict to any of these, then that parameter is tuned; the others are passed through to your function unchanged. Images, e.g., can't be tuned - so np.ndarray arguments are passed through to your function unchanged. Tuples of 3 ints also work, and are interpreted in a special way.
 <p>
-@TunedFunction works with the following subset of target's parameters:
-<ul>
-<li>Positional arguments...</li>
-<ul>
-<li>If your launch call looks like draw_circle(50) then radius is tuned.
-<li>If your launch call looks like draw_circle(radius=50), then radius is NOT tuned.
-This is by design; it gives you a way of excluding a parameter from tuning.
-</ul>
 
-<li>Positional arguments...to which your launch call sends arguments of the following types:</li>
--int, boolean, list, and dict. Tuples of 3 ints also work, and are interpreted in a special way.
-</ul>
-
-All other arguments (including kwargs) are passed on untouched and those parameters are not tuned. Images are typically passed around as np.ndarray objects, or as strings representing file names; TunedFunction passes these types through untouched.
-
-It's the type of the <i>argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters. Each of the following launch calls would have a different effect:
+It's the <i>type of the argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters. Each of the following launch calls would have a different effect:
 
 ```{language=python}
-#no tuning - target just receives 50 since radius is now a kwarg
+#image is passed through, radius is tuned - min 0, max 50
 find_circles(image, radius=50)
-#radius is tuned with values ranging from 0 to 50
-find_circles(image, 50)
+#same as above
+find_circles( image, 50 )
 #radius is tuned with values ranging between 20, and 50
-find_circles(image, (50,20)
-#radius is tuned and target receives one of [10, 50, 90]
+find_circles( image, (50,20) )
+#radius is tuned and the slider selects among [10, 50, 90]
 find_circles(image, [10,50,90])
 #radius is tuned and target receives one of [10, 50, 90]
 #The difference is that Tuner GUI dispalys "small", "med", "large"
 j = {"small":10, "med":50, "large":90}
-find_circles(image, j)
+find_circles( image, radius=j )
 
 ```
 </p>
@@ -163,46 +149,91 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 
 ```
 </ul>
+
+### The Menu/Ops within Tuner
+F1 - runs a grid search on the parameters
+F2 - saves the image
+F3 - saves your invocation. An invocation has a set of args, results, execution errors, and tags
+The next three (customizable, see the source) save your invocation after adding a tag. Tags can be anything you want them to be. Modify constants.py and update the `Tags` enum. Code comments there will explain your options.
+
+#### Tagging Theta
+The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close'. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
+
+#### Saving Theta
+The basic idea behind Tuner is:
+<ol>
+<li>...hook up Tuner to your code, and run your code to tune</li>
+
+<li>...save your observations (tags) along with theta</li>
+<li>...and finally, come back and analyse your output file to narrow in on your ideal theta</li>
+</ol>
+
+Saving behavior is determined principally by a couple of settings in TunerConfig.
+**TunerConfig.output_dir**: by default this is set to `./wip` Set this to whatever you like before you use the other functions of Tuner.
+**TunerConfig.save_style**: This should be set to some valid combination of the flags found in `constants.SaveStyles`. The default is to overwrite the contents of the output file on each run, and to only save when explicitly asked to. That said, any time you tag theta, or you have an execution error, that invocation is saved to the output file regardless of whether you asked for it to be saved, or not.
+<ul>
+<li>The name of the output file begins with the function being tuned; and within the file, this is approximately the tree structure:</li>
+<ul>
+<li>The name/title of the image file from your carousel (see explicit instantiation below) </li>
+<ul>
+<li>The invocation (the key/label is the md5 hash of theta)</li>
+<ul>
+<li>args (theta)</li>
+<li>results (saved via tuner.results=...)</li>
+<li>each of the custom tags that you apply</li>
+</ul>
+</ul>
+</ul>
+</ul>
+
+#### Grid Search
+This runs through a cartesian product of the parameter values you have set up. `target` is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta. Typically, you would tag each invocation while Tuner waits for input, or simply "press any key" your way through the cart (cartesian product).
+
+With explicit instantion, you can set how long Tuner waits, whether the op is headless etc.
+
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
 <H2>The Tuner Class</H2>
 
 Most of the basics have been detailed above. With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, and having arguments curried into your function. but there are added features you can access. If you like the UX of `@TunedFunction`, see the benefits section down below to determine if it's worth it to wade through the rest of this.
 The basic pattern is about the same:
-1. accept a `tuner` param...
-2. new: get the image you should work on from `tuner.image`. You get a fresh copy of the image to work on each time you read this.
-3. update `tuner.image` and `tuner.results` with the processed image before you return...
+1. accept a `tuner` param with the default value of None...
+2. ...do your thing...
+3. set `tuner.image` to the processed image before you return...
+4. optionally - set `tuner.results` to something that is json serializable before you return
 
-Which is basically what you can do with <code>@TunedFunction</code> already, and with much less code to boot. The difference lies in a few workflow features (which admittedly have been developed for an audience of one - me!)
+Which is basically what you can do with <code>@TunedFunction</code> already, and with less code to boot. The difference lies in a few workflow features that you gain.
 
-A significant change is that Tuner will not be currying parameters during these tuning calls, and you need to access all tuned parameters off <code>tuner</code>. You can either look in the <code>tuner.args</code> dict, or just directly reference the tuner attribute, e.g,, <code>tuner.radius</code> to continue with the first example. Incidentally, these attributes are readonly from code; they can only be changed by the trackbars.
-You cannot mix Tuner with partials and decorators - just the func please. If you do, things will blow up unpredictably.
-
-One of the following must apply to target (main and downstream):
 <ol>
-<li>Target's signature only accepts Tuner (no bueno, from the auto grader perspective).</li>
-<li>Target's signature has defaults for all parameters (easiest, and plays well with the auto grader).</li>
-</ol>
-
-The workflow basically looks like this:
-<ol>
-<li>Instantiate tuner.Choose between one and two functions to watch. </li>
--There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. When <code>downstream</code> accesses <code>tuner.image</code>, it too gets a fresh copy the current image being processed (set later). To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.
-
-- tuner.image and tuner.results set from cb_main are displayed in the main window.
-- tuner.image and tuner.results set in <code>downstream</code> are displayed in a second window which does not have trackbars. Usually, the downstream image obscures the main one; you'll need to move it out of the way.
-- Tuner will save them separately on F2.
-- It combines the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your results compatible with json serialization.
-
-<li>Add hyper-parameters to tune via the <code>tuner.track_*</code>  set of calls. Since these are not curried into target, they can be anything you want to tune - without reference to function parameters.</li>
-<li>Launch the tuning loop by calling <code>tuner.begin()</code>. Pass in a carousel which could be:</li>
+<li>Instantiate tuner, choosing between one and two functions to watch. </li>
 <ul>
-<li>None: when you plan to open a specific file in target or when there is no image to process.
-<li>A single file name: typically when you are just getting started with your code, and working one image at a time.
-<li>A list of file names: typically, when you have a set of test images you want to put through target. Tuner will cycle through all the images until you exit. Esc cancels the stack, any other key will advance the carousel.
-<li>All other arguments including a single image will cause an error.</li>
+<li>There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. </li>
+<li>When <code>downstream</code> accesses <code>tuner.image</code>, it too gets a fresh copy the current image being processed. To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.</li>
+<li><code>tuner.image</code> and <code>tuner.results</code> set from <code>main</code> are displayed in the main window (the one with the trackbars).</li>
+<li><code>tuner.image</code> and <code>tuner.results</code> set in <code>downstream</code> are displayed in a second window which does not have trackbars. Usually, the downstream image obscures the main one; you'll need to move it out of the way.</li>
+<li>Tuner will save images separately on F2, but will combine the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your results compatible with json serialization.</li>
+</ul>
+<li>Make calls to <code>tuner.track()</code>, <code>track_boolean()</code>, <code>track_list()</code> or <code>track_dict()</code> to define tracked/tuned parameters</li>
+<li>Make a call to tuner.begin(). You do not use a launch call, like you did with <code>TunedFunction()</code>. This launches tuner, and then each change to a slider results in a tuning call to <code>target</code>.
+<ul>
+<li>Tuner curries args for formal parameters which match by name to a <code>tracked parameter</code></li>
+<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.my_favorite_setting</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>, just add a tracked parameter for that (without adding a parameter to your function), and access it off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a set via tuner.args</li>
+<li><code>tuner.begin()</code> accepts a carousel argument. A carousel is a list of images that you want tuner to deal with as a set. </li>
+<ul>
+<li>You typically want to do this to find parameters that will work across all images in the set.</li>
+<li>Use the helper call <code>tuner.carousel_from_images()</code> to set up a carousel. This takes 2 lists.
+<ul>
+<li>The first is the list of parameters to <code>target</code> that take images. <code>target</code> might work with multiple images, and this list is where you specify the names of those parameters.</li>
+<li> The second is a list of paths to image files. If <code>target</code> works with 2 images, then each element of this second list must be a tuple of two image paths. If it works with three images, then each element must be a tuple of three image paths, et cetera. </li>
+<ul>
+</ul>
+</ul>
+</ul>
 </ul>
 </ol>
-<p>
+
+You cannot mix Tuner with partials and decorators - just the func please. If you do, things will blow up unpredictably.
+
+
 Besides the above, it's all pretty much the same. You do have access to a few additional methods, and the docstrings should explain those. Some of the gains are:
 <ul>
 <li>Being able to tune hyper-parameters without having them be parameters to your function. This keeps your signatures what your auto-grader expects, which is always pleasant when you have just one auto grader submission left until 3:00am :)</li>
@@ -214,7 +245,7 @@ Besides the above, it's all pretty much the same. You do have access to a few ad
 <li>Template Matching output in one vs. Harris Corners output in the other;</li>
 <li>what your noble code found, vs. what the built in CV functions found (I find this view particularly revealing; also, character building).</li>
 </ul>
-<li>Access to features of Tuner like <code>tuner.review()</code> etc. Please see the dostrings for more information. A couple of the more interesting static methods are <code>tuner_from_json()</code> and <code>minimal_preprocessor()</code>. Some day, I'll get around to implementing <code>tuner.grid_search()</code> </li>
+<li>Access to features of Tuner like <code>tuner.grid_search()</code> etc. Please see the dostrings for more information. A couple of the more interesting static methods are <code>tuner_from_json()</code> and <code>minimal_preprocessor()</code>.
 <li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of Tuner.</li>
 </ul>
 
@@ -229,7 +260,7 @@ If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contr
 If you don't see the overlay after each trackbar change, you are missing <code>Qt backend</code>
 
 ### Important Safety Tip
-I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but if you try to serialize an np.ndarray it'll blow up - gloriously.
+I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but caveat emptor...
 
 ### Licensing
 It's only licensed the way it is to prevent commercial trolling. For all other purposes...
