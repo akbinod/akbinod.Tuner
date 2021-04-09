@@ -2,10 +2,8 @@
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 <H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner.
-
-<br>Take a look at the example below, and read through to the first stopping point (about 5 minutes in).
-<br>Starting with this existing function and invocation...
+If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a look at the example below, and read through to the first stopping point (about 5 minutes in).
+<br>Starting with this function and its invocation...
 ```{python}
 def find_circles(image, radius):
 
@@ -18,7 +16,7 @@ if __name__ == "__main__":
 
 ```
 
-... including Tuner in your workflow, this becomes:
+... including Tuner in your workflow it becomes:
 
 ```{python}
 #new import
