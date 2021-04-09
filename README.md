@@ -2,9 +2,8 @@
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 <H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner.
+If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner. For a quick introduction to the essentials, take a look at the sample code below, and read through to the first stopping point (about 5 mins in).
 
-<br>Take a look at the example below, and read through to the first stopping point (5 mins in).
 <br>This function and invocation...
 
 ```{python}
@@ -37,17 +36,15 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your invocation from '__main__' now shows the `TunerUI` with:
+Your invocation from '__main__' now shows the `TunerUI` with a trackbar for 'radius' that goes between 0 and 50.
+And that's pretty much all you need to launch a tuning UI that provides:
 <ul>
-<li>a trackbar for 'radius' that goes between 0 and 50,</li>
 <li>grid search through your args,</li>
-<li>tagging of args/results, and</li>
+<li>tagging of args,</li>
 <li>json serialization of args, results, tags, exceptions.</li>
 </ul>
 
-<b>And that's pretty much it! This is all you need to know to get a tuning UI up and running.</b>
-
-Try it out on your code next, and If the UX works for you, come back to discover how to set minimums, pick from lists, receive json, etc.
+Try it out on your code next, and If the UX works for you, come back to figure how to set minimums, pick from lists, receive json, etc.
 
 
 <H2>@TunedFunction() Decorator</H2>
