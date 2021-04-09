@@ -253,10 +253,10 @@ Some of the gains are:
 </ul>
 <li>Controlling aspects of <code>tuner.grid_search()</code>. Please see the dostrings for more information. </li>
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
-<li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of Tuner.</li>
+<li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
 
-Apart from the few differences above, TunerUI or TunedFunction will give you pretty much the same UX. You do have access to a few additional methods, and the docstrings should explain those.
+Apart from the few differences above, TunerUI and TunedFunction will give you pretty much the same UX. You do have access to a few additional bells and whistles with the latter, and the docstrings should explain those.
 
 The accompanying sample files illustrate some uses. Play around, and let me know if you think of ways to improve this.
 </p>
