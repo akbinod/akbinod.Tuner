@@ -36,7 +36,7 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows `TunerUI` with a slider ranging from 0 to 42. It calls 'find_circles()' with a new value of 'radius' each time you move the slider. And *that*'s pretty much all you need to launch a tuning UI that provides:
+Your (unchanged) invocation from '__main__' now shows `TunerUI` with a slider ranging from 0 to 42. It calls 'find_circles()' with a new value for 'radius' each time you move the slider. And *that*'s pretty much all you need, to launch a tuning UX with:
 <ul>
 <li>grid searching through your args,</li>
 <li>tagging of args,</li>
