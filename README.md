@@ -24,7 +24,7 @@ if __name__ == "__main__":
 #new import
 import TunedFunction
 
-#new decorator, and `tuner` parameter
+#new decorator, and 'tuner' parameter
 @TunedFunction()
 def find_circles(image, radius, tuner=None)
 
@@ -36,7 +36,7 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows `TunerUI` with a slider ranging from 0 to 42. It calls 'find_circles()' with a new value for 'radius' each time you move the slider. And *that*'s pretty much all you need, to launch a tuning UX with:
+Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> with a slider ranging from 0 to 42. It calls 'find_circles()' with a new value for 'radius' each time you move the slider. And *that*'s pretty much all you need, to launch a tuning UX with:
 <ul>
 <li>grid searching through args,</li>
 <li>tagging of args,</li>
@@ -53,11 +53,11 @@ Implict Tuner instantiation. Although you do give up some flexibility, this is t
 <li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code> . There should be no other decorators on the function.
 <li>Begin your tuning session by calling your function. This is the <b>launch call</b>.</li>
 
-- TunedFunction creates an instance of TunerUI (passed to `target` via the `tuner` param) .
+- TunedFunction creates an instance of TunerUI (passed to <code>target</code> via the <code>tuner</code> param) .
 - Switch to the Tuner GUI:
 	- Adjust the trackbars.
 	- Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.
-	- Update <code>tuner</code> with the processed image before you return from `target`. This refreshes the display in Tuner's GUI.
+	- Update <code>tuner</code> with the processed image before you return from <code>target</code>. This refreshes the display in Tuner's GUI.
 	- Remain in the tuning loop until you keyboard exit out of the loop. Please see 'saving' below.
 <li>End your tuning session by pressing the escape (or any non function key)</li>
 </ul>
@@ -71,7 +71,7 @@ Tracked Parameters/What is tuned?
 Positional and keyword parameters (not varargs, or varkwargs) in your function signature are candidates for tuning. If your launch call passes an int, boolean, list or dict to any of these, then that parameter is tuned; the others are passed through to your function unchanged. Images, e.g., can't be tuned - so np.ndarray arguments are passed through to your function unchanged. Tuples of 3 ints also work, and are interpreted in a special way.
 <p>
 
-If you want to skip tuning some parameters in your `target's` signature, set default values for them, and drop them from your launch call. A param is not tuned, if an arg is not passed to it from your launch call.
+If you want to skip tuning some parameters in your <code>target</code>'s signature, set default values for them, and drop them from your launch call. A param is not tuned, if an arg is not passed to it from your launch call.
 
 It's the <i>type of the argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters. Each of the following launch calls would have a different effect:
 
@@ -196,16 +196,16 @@ With explicit instantion, you can set how long Tuner waits, whether the op is he
 
 Most of the basics have been detailed above.
 
-With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, and having arguments curried into your function. but there are added features you can access. If you like the UX of `@TunedFunction`, see the benefits section down below to determine if it's worth it to wade through the rest of this.
+With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, and having arguments curried into your function. but there are added features you can access. If you like the UX of <code>@TunedFunction</code>, see the benefits section down below to determine if it's worth it to wade through the rest of this.
 
 Instead of TunedFunction, you import TunerUI and TunerConfig. TunerUI is the facade you work with. You could ignore TunerConfig if the default settings work for you.
 
 The basic pattern is about the same:
 1. import TunerUI.
-2. accept a `tuner` param with the default value of None...
+2. accept a <code>tuner</code> param with the default value of None...
 2. ...do your thing...
-3. set `tuner.image` to the processed image before you return...
-4. optionally - set `tuner.results` to something that is json serializable before you return
+3. set <code>tuner.image</code> to the processed image before you return...
+4. optionally - set <code>tuner.results</code> to something that is json serializable before you return
 
 Which is basically what you can do with <code>@TunedFunction</code> already, and with less code to boot. The difference lies in a few workflow features that you gain.
 
@@ -259,7 +259,7 @@ The accompanying sample files illustrate some uses. Play around, and let me know
 </p>
 
 ### OpenCV GUI
-Your experience of this GUI is going to be determined by the version of various components - OpenCV, and the Qt backend. Tuner does take advantage of a couple of the features of the Qt backend, but those are guarded in `try` blocks, so you shouldn't bomb.
+Your experience of this GUI is going to be determined by the version of various components - OpenCV, and the Qt backend. Tuner does take advantage of a couple of the features of the Qt backend, but those are guarded in <code>try</code> blocks, so you shouldn't bomb.
 If you're in CS-6476, you've installed <code>opencv-contrib-python</code>. If not, might I suggest...
 
 If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contrib-python</code>
