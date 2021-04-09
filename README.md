@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
 ```
 
-... using TunerUI, become:
+... hooked up to Tuner, become:
 
 ```{python}
 #new import
@@ -29,7 +29,7 @@ import TunedFunction
 def find_circles(image, radius, tuner=None)
 
 
-#new line of code to display the updated image in TunerUI
+#new line of code to display updated 'image' in TunerUI
     if not tuner is None: tuner.image = updated_image
 
     return results
