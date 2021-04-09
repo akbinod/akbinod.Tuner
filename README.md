@@ -5,9 +5,8 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner.
 
 <br>Take a look at the example below, and read through to the first stopping point (about 5 minutes in).
-
+<br>Starting with this existing function and invocation...
 ```{python}
-# assuming this is your existing function and invocation
 def find_circles(image, radius):
 
     # your implementation
@@ -19,7 +18,7 @@ if __name__ == "__main__":
 
 ```
 
-Including Tuner in your workflow, this becomes:
+... including Tuner in your workflow, this becomes:
 
 ```{python}
 #new import
