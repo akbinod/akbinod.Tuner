@@ -24,12 +24,12 @@ if __name__ == "__main__":
 #new import
 import TunedFunction
 
-#new decorator, and 'tuner' parameter
+#new decorator, and a 'tuner' param
 @TunedFunction()
 def find_circles(image, radius, tuner=None)
 
 
-#new line of code to display updated 'image' in TunerUI
+#new line of code to display an updated image in TunerUI
     if not tuner is None: tuner.image = updated_image
 
     return results
