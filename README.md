@@ -14,7 +14,7 @@ def find_circles(image, radius):
     return results
 
 if __name__ == "__main__":
-	find_circles(image, 42)
+    find_circles(image, 42)
 
 ```
 
@@ -29,14 +29,14 @@ import TunedFunction
 def find_circles(image, radius, tuner=None)
 
 
-# new line of code displays the updated image in TunerUi
+#new line of code to display the updated image in TunerUI
     if not tuner is None: tuner.image = updated_image
 
     return results
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows `TunerUI` with a slider for 'radius' that calls 'find_circles()' each time you move the slider (in the range 0 to 42). That's pretty much all you need to launch a tuning UI that also provides:
+Your (unchanged) invocation from '__main__' now shows `TunerUI` with a slider ranging from 0 to 42. It calls 'find_circles()' with a new value of 'radius' each time you move the slider. And *that*'s pretty much all you need to launch a tuning UI that provides:
 <ul>
 <li>grid searching through your args,</li>
 <li>tagging of args,</li>
