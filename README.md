@@ -1,8 +1,8 @@
 <H1>akbinod.Tuner</H1>
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
-<H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner. For a quick introduction to the essentials, take a look at the sample code below, and read through to the first stopping point (about 5 mins in).
+<H3>Introduction</H3>
+If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner. Here's a 5 minute introduction to the essentials.
 
 <br>This function and invocation...
 
@@ -14,11 +14,11 @@ def find_circles(image, radius):
     return results
 
 if __name__ == "__main__":
-	find_circles(image, 50)
+	find_circles(image, 42)
 
 ```
 
-... becomes:
+... using TunerUI, become:
 
 ```{python}
 #new import
@@ -36,12 +36,11 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your invocation from '__main__' now shows the `TunerUI` with a trackbar for 'radius' that goes between 0 and 50.
-And that's pretty much all you need to launch a tuning UI that provides:
+Your (unchanged) invocation from '__main__' now shows `TunerUI` with a slider for 'radius' that calls 'find_circles()' each time you move the slider (in the range 0 to 42). That's pretty much all you need to launch a tuning UI that also provides:
 <ul>
-<li>grid search through your args,</li>
+<li>grid searching through your args,</li>
 <li>tagging of args,</li>
-<li>json serialization of args, results, tags, exceptions.</li>
+<li>json serialization of your invocation tree with args, results, tags, and exceptions.</li>
 </ul>
 
 Try it out on your code next, and If the UX works for you, come back to figure how to set minimums, pick from lists, receive json, etc.
