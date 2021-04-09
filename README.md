@@ -36,11 +36,13 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> with a slider ranging from 0 to 42. It calls 'find_circles()' with a new value for 'radius' each time you move the slider. And *that*'s pretty much all you need, to launch a tuning UX with:
+Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circles()</code> with a new value for 'radius'.
+
+And *that* folks, is pretty much it. <code>TunerUI</code> provides:
 <ul>
 <li>grid searching through args,</li>
 <li>tagging of args,</li>
-<li>json serialization of invocation trees with args, results, tags, and exceptions.</li>
+<li>json serialization of invocation trees (args, results, tags, and exceptions).</li>
 </ul>
 
 Try it out on your code next, and If the UX works for you, come back to figure how to set minimums, pick from lists, receive json, etc.
