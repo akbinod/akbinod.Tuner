@@ -198,18 +198,17 @@ With explicit instantion, you can set how long Tuner waits, whether the op is he
 
 Most of the basics have been detailed above.
 
-With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, and having arguments curried into your function. but there are added features you can access. If you like the UX of <code>@TunedFunction</code>, see the benefits section down below to determine if it's worth it to wade through the rest of this.
+With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, but gain more control over features. If you like the UX of <code>@TunedFunction</code>, see the benefits section down below to determine if it's worth it to wade through the rest of this.
 
-Instead of TunedFunction, you import TunerUI and TunerConfig. TunerUI is the facade you work with. You could ignore TunerConfig if the default settings work for you.
+Instead of TunedFunction, you import TunerUI and TunerConfig. TunerUI is the facade you work with. You could ignore TunerConfig if the default settings (e.g. when and where to save) work for you.
 
 The basic pattern is about the same:
 1. import TunerUI.
 2. accept a <code>tuner</code> param with the default value of None...
-2. ...do your thing...
 3. set <code>tuner.image</code> to the processed image before you return...
 4. optionally - set <code>tuner.results</code> to something that is json serializable before you return
 
-Which is basically what you can do with <code>@TunedFunction</code> already, and with less code to boot. The difference lies in a few workflow features that you gain.
+Which is basically what you do with <code>@TunedFunction</code>, and with less code to boot.
 
 <ol>
 <li>Instantiate tuner, choosing between one and two functions to watch. </li>
@@ -223,14 +222,14 @@ Which is basically what you can do with <code>@TunedFunction</code> already, and
 <li>Make calls to <code>tuner.track()</code>, <code>track_boolean()</code>, <code>track_list()</code> or <code>track_dict()</code> to define tracked/tuned parameters</li>
 <li>Make a call to tuner.begin(). You do not use a launch call, like you did with <code>TunedFunction()</code>. This launches tuner, and then each change to a slider results in a tuning call to <code>target</code>.
 <ul>
-<li>Tuner curries args for formal parameters which match by name to a <code>tracked parameter</code></li>
-<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.my_favorite_setting</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>, just add a tracked parameter for that (without adding a parameter to your function), and access it off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a set via tuner.args</li>
+<li>Tuner curries args to formal parameters which match by name to a <code>tracked parameter</code></li>
+<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>, just add a tracked parameter for that (without adding a parameter to your function), and access it off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
 <li><code>tuner.begin()</code> accepts a carousel argument. A carousel is a list of images that you want tuner to deal with as a set. </li>
 <ul>
 <li>You typically want to do this to find parameters that will work across all images in the set.</li>
 <li>Use the helper call <code>tuner.carousel_from_images()</code> to set up a carousel. This takes 2 lists.
 <ul>
-<li>The first is the list of parameters to <code>target</code> that take images. <code>target</code> might work with multiple images, and this list is where you specify the names of those parameters.</li>
+<li>The first is the list of parameters to <code>target</code> that take images. <code>target</code> might work with multiple images, and this list is where you specify the names of those parameters which expect images.</li>
 <li> The second is a list of paths to image files. If <code>target</code> works with 2 images, then each element of this second list must be a tuple of two image paths. If it works with three images, then each element must be a tuple of three image paths, et cetera. </li>
 <ul>
 </ul>
