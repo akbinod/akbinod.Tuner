@@ -137,11 +137,12 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 </ul>
 
 ### TunerUI Menu
-F1 : runs a grid search on the parameters
-F2 : saves the image
-F3 : saves your Invocation Tree (see bleow)
-F8 - F10 : tags and saves your Invocation Tree (see below).
-
+<ul>
+<li>F1 : runs a grid search on the parameters
+<li>F2 : saves the image
+<li>F3 : saves your Invocation Tree (see bleow)
+<li>F8 - F10 : tags and saves your Invocation Tree (see below).
+</ul>
 #### Saving Invocation Trees
 The basic idea behind Tuner is:
 <ol>
