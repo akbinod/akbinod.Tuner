@@ -138,12 +138,12 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 
 ### TunerUI Menu
 <ul>
-<li>F1 : runs a grid search on the parameters
-<li>F2 : saves the image
-<li>F3 : saves your Invocation Tree (see bleow)
-<li>F8 - F10 : tags and saves your Invocation Tree (see below).
+<li>F1 : runs a grid search on the parameters</li>
+<li>F2 : saves the image</li>
+<li>F3 : saves your Invocation Tree (see bleow)</li>
+<li>F8 - F10 : tags and saves your Invocation Tree (see below).</li>
 </ul>
-#### Saving Invocation Trees
+<H4>Saving Invocation Trees</H4>
 The basic idea behind Tuner is:
 <ol>
 <li>...hook up Tuner and invoke your function to tune it</li>
@@ -182,11 +182,11 @@ The name of the output file begins with the function being tuned; and within the
 </ul>
 </ul>
 
-#### Tagging Theta
+<H4>Tagging Theta</H4>
 The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close', the defaults you see in the UI. You could customize this. Modify constants.py and update the `Tags` enum. Code comments there will explain your options. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
 
 
-#### Grid Search
+<H4>Grid Search</H4>
 This runs through a cartesian product of the parameter values you have set up. `target` is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta. Typically, you would tag each invocation while Tuner waits for input, or simply "press any key" your way through the cart (cartesian product).
 
 With explicit instantion, you can set how long Tuner waits, whether the op is headless etc.
