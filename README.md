@@ -1,17 +1,22 @@
-
 <H1>akbinod.Tuner</H1>
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 <H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some pain. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a look at the example below, and read through to the first stopping point (about 5 minutes in). Try it out on your code next, and If the UX works for you, come back to read the rest of this document.
+If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner.
+
+<br>Take a look at the example below, and read through to the first stopping point (about 5 minutes in).
 
 ```{python}
-# here's your existing code
+# assuming this is your existing function and invocation
 def find_circles(image, radius):
 
     # your implementation
 
     return results
+
+if __name__ == "__main__":
+	find_circles(image, 50)
+
 ```
 
 Including Tuner in your workflow, this becomes:
@@ -25,34 +30,25 @@ import TunedFunction
 def find_circles(image, radius, tuner=None)
 
 
-# new line of code before you return
+# new line of code before you return - to display your updated image
     if not tuner is None: tuner.image = updated_image
 
     return results
 
 ```
 
-The changes you need to make (besides import):
-<ol>
-<li>Decorate the tuning <b>target</b> (e.g., <code>find_circles()</code>) with <code>@TunedFunction</code> </li>
-<li>Modify <b>target</b> to take a new parameter: <code>tuner=None</code></li>
-<li>set <code>tuner.image</code> before you return; this shows the modified image in the Tuner GUI.
-</ol>
-<p>
-Kicking off the tuning process in this example, is the following line of code:
-</p>
+Your invocation from '__main__' now shows the `TunerUI` with a trackbar that goes between 0 and 50. `TunerUI` also provides:
+<ul>
+<li>Grid search through your args (yes, that grid search)</li>
+<li>Tagging of args/results</li>
+<li>JSON serialization of args, results, tags, exceptions.</li>
+</ul>
 
-``` {python}
-# trackbar goes between 0 and 50
-find_circles(image, 50)
-# OR
-# trackbar has a min of 5, max of 50
-find_circles(image, (50,5))
-```
 
-<b>And that's pretty much it! This is all you need to know to get a tuning UI (with grid search) up and running.</b>
+<b>And that's pretty much it! This is all you need to know to get a tuning UI up and running.</b>
 
-You're at a good stopping point if you're happy receiving ints as args. Read on if you would like to receive json, etc.
+Try it out on your code next, and If the UX works for you, come back to discover how to set minimums, pick from lists, receive json, etc.
+
 
 <H2>@TunedFunction() Decorator</H2>
 Implict Tuner instantiation. Although you do give up some flexibility, this is the quickest way of getting started with tuning your CV code.
