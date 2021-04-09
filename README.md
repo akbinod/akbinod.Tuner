@@ -2,8 +2,11 @@
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2021<br>
 <H3>Why?</H3>
-If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner. Take a look at the example below, and read through to the first stopping point (about 5 minutes in).
-<br>Starting with this function and its invocation...
+If you're studying Computer Vision, or Reinforcement Learning, hyper-parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent hyper-parameter Tuner.
+
+<br>Take a look at the example below, and read through to the first stopping point (5 mins in).
+<br>This function and invocation...
+
 ```{python}
 def find_circles(image, radius):
 
@@ -16,7 +19,7 @@ if __name__ == "__main__":
 
 ```
 
-... including Tuner in your workflow it becomes:
+... becomes:
 
 ```{python}
 #new import
@@ -27,20 +30,20 @@ import TunedFunction
 def find_circles(image, radius, tuner=None)
 
 
-# new line of code before you return - to display your updated image
+# new line of code displays the updated image in TunerUi
     if not tuner is None: tuner.image = updated_image
 
     return results
 
 ```
 
-Your invocation from '__main__' now shows the `TunerUI` with a trackbar that goes between 0 and 50. `TunerUI` also provides:
+Your invocation from '__main__' now shows the `TunerUI` with:
 <ul>
-<li>Grid search through your args (yes, that grid search)</li>
-<li>Tagging of args/results</li>
-<li>JSON serialization of args, results, tags, exceptions.</li>
+<li>a trackbar for 'radius' that goes between 0 and 50,</li>
+<li>grid search through your args,</li>
+<li>tagging of args/results, and</li>
+<li>json serialization of args, results, tags, exceptions.</li>
 </ul>
-
 
 <b>And that's pretty much it! This is all you need to know to get a tuning UI up and running.</b>
 
