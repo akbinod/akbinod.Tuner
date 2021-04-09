@@ -222,8 +222,8 @@ Which is basically what you do with <code>@TunedFunction</code>, and with less c
 <li>Make calls to <code>tuner.track()</code>, <code>track_boolean()</code>, <code>track_list()</code> or <code>track_dict()</code> to define tracked/tuned parameters</li>
 <li>Make a call to tuner.begin(). You do not use a launch call, like you did with <code>TunedFunction()</code>. This launches tuner, and then each change to a slider results in a tuning call to <code>target</code>.
 <ul>
-<li>Tuner curries args to formal parameters which match by name to a <code>tracked parameter</code></li>
-<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>, just add a tracked parameter for that (without adding a parameter to your function), and access it off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
+<li>Tuner curries args to formal parameters which match by name to a tracked parameter.</li>
+<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>? Well, just add a tracked parameter for that (without adding a parameter to your function), and access it off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
 <li><code>tuner.begin()</code> accepts a carousel argument. A carousel is a list of images that you want tuner to deal with as a set. </li>
 <ul>
 <li>You typically want to do this to find parameters that will work across all images in the set.</li>
@@ -240,7 +240,7 @@ Which is basically what you do with <code>@TunedFunction</code>, and with less c
 
 You cannot mix Tuner with partials and decorators (things blow up unperdictably) - just the func please.
 
-Besides the above, it's all pretty much the same. You do have access to a few additional methods, and the docstrings should explain those. Some of the gains are:
+Some of the gains are:
 <ul>
 <li>Being able to tune hyper-parameters without having them be parameters to your function. This keeps your signatures what your auto-grader expects, which is always pleasant when you have just one auto grader submission left until 3:00am :)</li>
 <li>Process a carousel of images, remembering settings between images.</li>
@@ -255,6 +255,8 @@ Besides the above, it's all pretty much the same. You do have access to a few ad
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
 <li>Finally, as anyone who has written a Decorator know, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of Tuner.</li>
 </ul>
+
+Apart from the few differences above, TunerUI or TunedFunction will give you pretty much the same UX. You do have access to a few additional methods, and the docstrings should explain those.
 
 The accompanying sample files illustrate some uses. Play around, and let me know if you think of ways to improve this.
 </p>
