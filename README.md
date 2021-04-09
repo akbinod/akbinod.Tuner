@@ -38,14 +38,14 @@ def find_circles(image, radius, tuner=None)
 
 Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circles()</code> with a new value for 'radius'.
 
-And *that* folks, is pretty much it. <code>TunerUI</code> provides:
+<code>TunerUI</code> provides:
 <ul>
-<li>grid searching through args,</li>
-<li>tagging of args,</li>
-<li>json serialization of invocation trees (args, results, tags, and exceptions).</li>
+<li>grid searching through args (systematically exhaust the search space),</li>
+<li>tagging of args (note when theta is cold/warm/on-the-money),</li>
+<li>json serialization of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
 
-Try it out on your code next, and If the UX works for you, come back to figure how to set minimums, pick from lists, receive json, etc.
+And *that* folks, is pretty much it. Try this out on your code next, and should the UX work for you, come back to figure how to set minimums, pick from lists, receive json, etc.
 
 <H2>@TunedFunction() Decorator</H2>
 Implict Tuner instantiation. Although you do give up some flexibility, this is the quickest way of getting started with tuning your CV code.
