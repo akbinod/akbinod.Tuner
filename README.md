@@ -269,7 +269,7 @@ Some of the gains are:
 <li><code>match_template()</code> output in one vs. <code>harris_corners()</code> output in the other.</li>
 <li>What your noble code found, vs. what the built in CV functions found (I find this view particularly revealing, also, character building).</li>
 </ul>
-<li>Controlling aspects of <a href='gridsearch'><code>tuner.grid_search()</code></a>. Please see the docstrings for more information. </li>
+<li>Controlling aspects of <a href='#gridsearch'><code>tuner.grid_search()</code></a>. Please see the docstrings for more information. </li>
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
 <li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
