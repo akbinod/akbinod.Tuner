@@ -47,7 +47,7 @@ Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It h
 
 And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
-At this point, you are using a thin wrapper over openCV trackbars; one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. Read on, McDuff... (Prof. Bobbick's influence, I swear...)
+At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. You'll need to grok a couple other things first, so... read on, McDuff... (Prof. Bobbick's influence, I swear...)
 
 <H2>@TunedFunction() Decorator</H2>
 Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, this is the quickest way of getting started with tuning your code.
@@ -187,19 +187,19 @@ The name of the output file begins with the function being tuned; and within the
 </ul>
 
 <H4>Tagging Theta</H4>
-The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close', the defaults you see in the UI. You could customize this. Modify constants.py and update the `Tags` enum. Code comments there will explain your options. Pick a scheme that works for you, and stick with it. I'd recommend something like jsonpath to search the saved invocation tree.
+The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close', the defaults you see in the UI. You could customize this. Modify constants.py and update the `Tags` enum. Code comments there will explain your options. Pick a scheme that works for you, and stick with it. I'd recommend something like glom or jsonpath-ng to search the saved invocation tree.
 
 
 <H4>Grid Search</H4>
 If you are not a "parameter whisperer", you're going to turn to brute force tuning at some point; I did. So, with 3 params, each of which could take 5 values, you're likely to be annoyed by the process, and more likely to make a costly mistake. The worst of tuning, for me, is the prospect of missing the "right set of args", thanks to NOT clicking through the various settings methodically. Fortunately, there's code for that.
 
-This feature runs through a cartesian product of the parameter values you have set up. <code>target</code> is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta.
+<br>This feature runs through a cartesian product of the parameter values you have set up. <code>target</code> is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta.
 
 Here's my workflow:
 <ol>
 <li>I start with a small range of inputs, and let Tuner search through that space.</li>
 <li>When Tuner waits for input, I tag the current set of args (e.g., 'avoid' or 'close'); or just 'press any key'. I can also hit Esc to cancel the grid search.</li>
-<li>After I've run through the cart (cartesian product), I query the output (json) file to find my theta, or something close.</li>
+<li>After I've run through the cart (cartesian product of all arguments), I query the (json) output file to find my theta, or something close.</li>
 </ol>
 With explicit instantiation (i.e., using TunerUI rather than @TunedFunction), I can set how long Tuner waits, etc. I typically first run through the search space with a 40ms delay to determine if I'm "in the ball-park". If it looks like the answer or something close to it is in there, I then run through it again with a full second delay, and tag what I find interesting. If I don't find anything close in my first attempt, I open up the search space some (expand the range of values for the args).
 
