@@ -47,7 +47,7 @@ Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It h
 
 And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
-At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. You'll need to grok a couple other things first, so... read on, McDuff... (Prof. Bobbick's influence, I swear...)
+At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. You'll need to grok a couple other things first... read on, McDuff... (Prof. Bobbick's influence, I swear...)
 
 <H2>@TunedFunction() Decorator</H2>
 Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, just decorating your function is the quickest way of getting started.
@@ -61,7 +61,6 @@ Although you do give up some flexibility, compared to explicitly instantiating a
 <li>Switch to the Tuner GUI and adjust the trackbars.</li>
 <li>Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.</li>
 <li>Update <code>tuner</code> with the processed image from within <code>target</code>. This refreshes the display in Tuner's GUI.</li>
-<li>Remain in the tuning loop until you keyboard exit out of the loop. Please see 'saving' below.</li>
 </ul>
 <li>End your tuning session by pressing the Esc (or any non function key)</li>
 </ol>
