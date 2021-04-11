@@ -262,14 +262,14 @@ Some of the gains are:
 <ul>
 <li>Being able to tune hyper-parameters, or other control variables, without having them be parameters to your function. This keeps your signature what your auto-grader expects. Once ascertained, you should remove these from <code>Tuner</code></li>
 <li>Process a <a href=#carousel>carousel of images</a>, remembering settings between images.</li>
-<li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> before you set <code>tuner.image</code>. This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction</code> as well.</li>
+<li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> before you set <code>tuner.image</code>. This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction()</code> as well.</li>
 <li>View the results of two processes in side by side windows. A few use cases for side-by-side comparison of images:
 <ul>
 <li>Show your pre-processing output in <code>main</code>; and traffic sign identification output in <code>downstream</code>.</li>
 <li><code>match_template()</code> output in one vs. <code>harris_corners()</code> output in the other.</li>
 <li>What your noble code found, vs. what the built in CV functions found (I find this view particularly revealing, also, character building).</li>
 </ul>
-<li>Controlling aspects of <code>tuner.grid_search()</code>. Please see the docstrings for more information. </li>
+<li>Controlling aspects of <a href='gridsearch'><code>tuner.grid_search()</code></a>. Please see the docstrings for more information. </li>
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
 <li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
