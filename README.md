@@ -164,13 +164,13 @@ Saving behavior is determined principally by a couple of statics in TunerConfig.
 <li><b>results</b>: This could be explicitly set by your code like so <code>tuner.results=...</code>. If you do not set this value, tuner captures the values returned by <code>target</code> and saves them as long as they are json serializable</li>
 <li><b>errored</b>: Whether an error took place during <code>target</code> invocation.</li>
 <li><b>error</b>: These are execution errors encountered during <code>target</code> invocation. BTW, the most recent call is first in this formatted list, not last as you would expect from typical python output.</li>
-<li><b> [insert your tag here] </b>: A complete list of all the custom tags with the value set to false, unless you explicitly tag the invocation</li>
+<li><b> [insert your tag here] </b>: A complete list of all the custom tags with the value set to false, unless you explicitly tag the invocation, in which case the particular tafs are set to <code>True</code>.</li>
 </ul>
-These tracked values are pushed into the output file when:
+An invocation is pushed into the output file when:
 <ul>
 <li>You explicitly save  - F3.</li>
 <li>You tag an invocation.</li>
-<li>An error was encountered during the invocation .</li>
+<li>An exception was encountered during the invocation.</li>
 </ul>
 The name of the output file begins with the function being tuned; and within the file, this is approximately the tree structure:
 <ul>
@@ -212,7 +212,7 @@ This is about as much code as I can give you without running afoul of the GA Tec
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
 <H2>TunerUI Class</H2>
 
-Most of the basics have been detailed above.
+Most of the basics have been detailed above, and this just lists the differences.
 
 With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, but gain more control over features. If you like the UX of <code>@TunedFunction</code>, see the benefits section down below to determine if it's worth it to wade through the rest of this.
 
@@ -236,10 +236,10 @@ Which is basically what you do with <code>@TunedFunction</code>, and with less c
 <li>Tuner will save images separately on F2, but will combine the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your results compatible with json serialization.</li>
 </ul>
 <li>Make calls to <code>tuner.track()</code>, <code>track_boolean()</code>, <code>track_list()</code> or <code>track_dict()</code> to define tracked/tuned parameters</li>
-<li>Make a call to tuner.begin(). You do not use a launch call, like you did with <code>TunedFunction()</code>. This launches tuner, and then each change to a slider results in a tuning call to <code>target</code>.
+<li>Make a call to tuner.begin(). [You do not use a launch call, like you did with <code>TunedFunction()</code>]. This launches tuner, and then, as usual, each change to a trackbar results in a tuning call to <code>target</code>.
 <ul>
 <li>Tuner curries args to formal parameters which match by name to a tracked parameter.</li>
-<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>? Well, just add a tracked parameter for that (without adding a parameter to your function), and access it off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
+<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>? Well, just add a tracked parameter for that (without adding a parameter to your function), and access its value off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
 <li><code>tuner.begin()</code> accepts a carousel argument. A carousel is a list of images that you want tuner to deal with as a set. </li>
 <ul>
 <li>You typically want to do this to find parameters that will work across all images in the set.</li>
@@ -258,23 +258,23 @@ You cannot mix Tuner with partials and decorators (things blow up unperdictably)
 
 Some of the gains are:
 <ul>
-<li>Being able to tune hyper-parameters without having them be parameters to your function. This keeps your signatures what your auto-grader expects, which is always pleasant when you have just one auto grader submission left until 3:00am :)</li>
+<li>Being able to tune hyper-parameters, or other control variables, without having them be parameters to your function. This keeps your signature what your auto-grader expects. Once ascertained, you should remove these from <code>Tuner</code></li>
 <li>Process a carousel of images, remembering settings between images.</li>
-<li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> from within your target function). This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction</code> as well.</li>
+<li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> before you set <code>tuner.image</code>. This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction</code> as well.</li>
 <li>View the results of two processes in side by side windows. A few use cases for side-by-side comparison of images:
 <ul>
-<li>your pre-processing output in main; and traffic sign identification output in downstream;</li>
-<li>Template Matching output in one vs. Harris Corners output in the other;</li>
-<li>what your noble code found, vs. what the built in CV functions found (I find this view particularly revealing; also, character building).</li>
+<li>Show your pre-processing output in <code>main</code>; and traffic sign identification output in <code>downstream</code>.</li>
+<li><code>match_template()</code> output in one vs. <code>harris_corners()</code> output in the other.</li>
+<li>What your noble code found, vs. what the built in CV functions found (I find this view particularly revealing, also, character building).</li>
 </ul>
-<li>Controlling aspects of <code>tuner.grid_search()</code>. Please see the dostrings for more information. </li>
+<li>Controlling aspects of <code>tuner.grid_search()</code>. Please see the docstrings for more information. </li>
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
 <li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
 
-Apart from the few differences above, TunerUI and TunedFunction will give you pretty much the same UX. You do have access to a few additional bells and whistles with the latter, and the docstrings should explain those.
+Apart from the few differences above, <code>TunerUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. You do have access to a few additional bells and whistles with the latter, and the docstrings should explain those.
 
-The accompanying sample files illustrate some uses. Play around, and let me know if you think of ways to improve this.
+The accompanying <code>example.py</code> illustrates some uses. Play around, and let me know if you think of ways to improve this.
 </p>
 
 ### OpenCV GUI
