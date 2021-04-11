@@ -4,7 +4,7 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <H3>Introduction</H3>
 If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner.
 
-<br>Here's a 5 minute introduction to the essentials. This function (the code for this example is in `example.py`.) and invocation...
+<br>Here's a 5 minute introduction to the essentials. This function (the code for this example is in `example.py`) and invocation...
 
 ```{python}
 def find_circle(image, radius):
