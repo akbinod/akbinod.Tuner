@@ -7,14 +7,14 @@ If you're studying Computer Vision, or Reinforcement Learning, parameter tuning 
 <br>Here's a 5 minute introduction to the essentials. This function and invocation...
 
 ```{python}
-def find_circles(image, radius):
+def find_circle(image, radius):
 
     # your implementation
 
     return results
 
 if __name__ == "__main__":
-    find_circles(image, 42)
+    find_circle(image, 42)
 
 ```
 
@@ -26,7 +26,7 @@ import TunedFunction
 
 #new decorator, and a 'tuner' param
 @TunedFunction()
-def find_circles(image, radius, tuner=None)
+def find_circle(image, radius, tuner=None)
 
 
 #new line of code to display an updated image in TunerUI
@@ -36,7 +36,7 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circles()</code> with a new value for 'radius'. Here's the TunerUI with the trackbar set to 39.
+Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circle()</code> with a new value for 'radius'. Here's the TunerUI with the trackbar set to 39.
 
 ![TunerUI](./images/tuner_find_circle_example.png "TunerUI")
 And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
@@ -80,17 +80,17 @@ It's the <i>type of the argument</i> passed in your launch call that drives Tune
 
 ```{language=python}
 #image is passed through, radius is tuned - min 0, max 50
-find_circles(image, radius=50)
+find_circle(image, radius=50)
 #same as above
-find_circles( image, 50 )
+find_circle( image, 50 )
 #radius is tuned with values ranging between 20, and 50
-find_circles( image, (50,20) )
+find_circle( image, (50,20) )
 #radius is tuned and the slider selects among [10, 50, 90]
-find_circles(image, [10,50,90])
+find_circle(image, [10,50,90])
 #radius is tuned and target receives one of [10, 50, 90]
 #The difference is that Tuner GUI dispalys "small", "med", "large"
 j = {"small":10, "med":50, "large":90}
-find_circles( image, radius=j )
+find_circle( image, radius=j )
 
 ```
 </p>
