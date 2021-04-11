@@ -21,11 +21,10 @@ class ImageFrameGenerator():
         self.length = 0 if self.images is None else len(self.images)
         self.index = -1
 
-    def __iter__(self):
-
+    def __iter__ (self):
         return self
 
-    def __next__(self)->Frame:
+    def __next__ (self):
         while self.index < self.length - 1:
             self.index += 1
             frame = Frame()
