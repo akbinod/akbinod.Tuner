@@ -4,7 +4,7 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <H3>Introduction</H3>
 If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner.
 
-<br>Here's a 5 minute introduction to the essentials. This function and invocation...
+<br>Here's a 5 minute introduction to the essentials. This function (the code for this example is in `example.py`.) and invocation...
 
 ```{python}
 def find_circle(image, radius):
@@ -39,17 +39,17 @@ def find_circle(image, radius, tuner=None)
 Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> : an openCV window with a trackbar called 'radius' which ranges from 0 to 42. The window title begins with the name of your tuned function, and the `overlay` shows the possible actions. Each time you move the slider, <code>TunerUI</code> calls <code>find_circle()</code> with a new value for 'radius'. Here's TunerUI when the trackbar is set to 39.
 
 ![TunerUI](./images/tuner_find_circle_example.png "TunerUI")
-You can find the code for this example in `example.py`.
+
 <br>And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
-At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code> though, like:
+At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code>, like:
 <ul>
 <li>it runs a systematic <a href='#gridsearch'>grid search</a> over the space of your args (exhausts the search space),</li>
 <li><a href='#tag'> tagging</a> args (note when theta is cold/warm/on-the-money),</li>
 <li>json <a href='#serialize'>serialization</a> of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
 
-<br>So... read on, McDuff... (Prof. Bobbick's influence, I swear...)
+<br>So... read on, McDuff...
 
 <H2>@TunedFunction() Decorator</H2>
 Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, just decorating your function is the quickest way of getting started.
