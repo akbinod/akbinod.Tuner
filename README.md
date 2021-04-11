@@ -43,8 +43,8 @@ And *that* folks, is pretty much it. Here's a good stopping point; try this out 
 At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code> though, like:
 <ul>
 <li>it runs a systematic <a href='#gridsearch'>grid search</a> over the space of your args (exhausts the search space),</li>
-<li>tagging args (note when theta is cold/warm/on-the-money),</li>
-<li>json serialization of invocation trees (analyze your findings, narrow your search space)</li>
+<li><a href='#tag'> tagging</a> args (note when theta is cold/warm/on-the-money),</li>
+<li>json <a href='#serialize'>serialization</a> of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
 
 <br>So... read on, McDuff... (Prof. Bobbick's influence, I swear...)
@@ -140,12 +140,12 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 
 ### TunerUI Menu
 <ul>
-<li>F1 : runs a grid search on the parameters</li>
+<li>F1 : runs a <a href='#gridsearch'>grid search</a></li>
 <li>F2 : saves the image</li>
-<li>F3 : saves your Invocation Tree (see bleow)</li>
-<li>F8 - F10 : tags and saves your Invocation Tree (see below).</li>
+<li>F3 : <a href='#serialize'>saves</a> your Invocation Tree</li>
+<li>F8 - F10 : <a href='#tag'>tags</a> and saves your Invocation Tree (see below).</li>
 </ul>
-<H4>Saving Invocation Trees</H4>
+<H4 id='serialize'>Saving Invocation Trees</H4>
 The basic idea behind Tuner is:
 <ol>
 <li>...hook up Tuner and invoke your function to tune it</li>
@@ -184,7 +184,7 @@ The name of the output file begins with the function being tuned; and within the
 </ul>
 </ul>
 
-<H4>Tagging Theta</H4>
+<H4 id='tag'>Tagging Theta</H4>
 The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close', the defaults you see in the UI. You could customize this. Modify constants.py and update the `Tags` enum. Code comments there will explain your options. Pick a scheme that works for you, and stick with it. I'd recommend something like glom or jsonpath-ng to search the saved invocation tree.
 
 
