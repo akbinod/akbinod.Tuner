@@ -45,10 +45,12 @@ Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It h
 <li>json serialization of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
 
-And *that* folks, is pretty much it. Try this out on your code next, and should the UX work for you, come back to figure how to set minimums, pick from lists, receive json, etc.
+And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
+
+At this point, you are using a thin wrapper over openCV trackbars; one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. Read on, McDuff... (Prof. Bobbick's influence, I swear...)
 
 <H2>@TunedFunction() Decorator</H2>
-Implict Tuner instantiation. Although you do give up some flexibility, this is the quickest way of getting started with tuning your CV code.
+Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, this is the quickest way of getting started with tuning your code.
 <H3>Usage</H3>
 
 <ul>
@@ -75,7 +77,7 @@ Positional and keyword parameters (not varargs, or varkwargs) in your function s
 
 If you want to skip tuning some parameters in your <code>target</code>'s signature, set default values for them, and drop them from your launch call. A param is not tuned, if an arg is not passed to it from your launch call.
 
-It's the <i>type of the argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters. Each of the following launch calls would have a different effect:
+It's the <i>type of the argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters.
 
 ```{language=python}
 #image is passed through, radius is tuned - min 0, max 50
@@ -189,9 +191,23 @@ The purpose of tuning is to find args that work for the task at hand. It might b
 
 
 <H4>Grid Search</H4>
-This runs through a cartesian product of the parameter values you have set up. `target` is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta. Typically, you would tag each invocation while Tuner waits for input, or simply "press any key" your way through the cart (cartesian product).
+If you are not a "parameter whisperer", you're going to turn to brute force tuning at some point; I did. So, with 3 params, each of which could take 5 values, you're likely to be annoyed by the process, and more likely to make a costly mistake. The worst of tuning, for me, is the prospect of missing the "right set of args", thanks to NOT clicking through the various settings methodically. Fortunately, there's code for that.
 
-With explicit instantion, you can set how long Tuner waits, whether the op is headless etc.
+This feature runs through a cartesian product of the parameter values you have set up. <code>target</code> is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta.
+
+Here's my workflow:
+<ol>
+<li>I start with a small range of inputs, and let Tuner search through that space.</li>
+<li>When Tuner waits for input, I tag the current set of args (e.g., 'avoid' or 'close'); or just 'press any key'. I can also hit Esc to cancel the grid search.</li>
+<li>After I've run through the cart (cartesian product), I query the output (json) file to find my theta, or something close.</li>
+</ol>
+With explicit instantiation (i.e., using TunerUI rather than @TunedFunction), I can set how long Tuner waits, etc. I typically first run through the search space with a 40ms delay to determine if I'm "in the ball-park". If it looks like the answer or something close to it is in there, I then run through it again with a full second delay, and tag what I find interesting. If I don't find anything close in my first attempt, I open up the search space some (expand the range of values for the args).
+
+This is about as much code as I can give you without running afoul of the GA Tech Honor Code. We can spitball some ideas to help you get more value out of the data that's captured if you follow the "Search-Inspect-Tag" workflow I've outlined above.
+<ol>
+<li>If you find a number of 'close' thetas, build a histogram of the various args to EACH param, using only thetas that are 'close'. That should highlight a useful arg to that param :)</li>
+<li>Implement a Kalman Filter to help you narrow the grid search.</li>
+</ol>
 
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
 <H2>TunerUI Class</H2>
