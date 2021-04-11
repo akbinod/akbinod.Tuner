@@ -1,9 +1,10 @@
 import numpy as np
 import cv2
 from TunedFunction import TunedFunction
-
-img_sample_1 = "./tuner_sample_1.png"
-img_sample_2 = "./tuner_sample_2_bw.jpg"
+from core.constants import *
+img_sample_1 = "./images/tuner_sample_color.png"
+img_sample_2 = "./images/tuner_sample_bw.jpg"
+img_sample_3 = "./images/tuner_circle.png"
 
 @TunedFunction()
 def draw_circle_on_image(image, radius, color, center, tuner):
@@ -64,7 +65,48 @@ def launch_draw_circle():
 
     return
 
+@TunedFunction()
+def find_circle(image, radius,tuner=None):
+    # show the original
+    display = image.copy()
+    # convert grayscale
+    image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    # apply a light blur
+    image = cv2.medianBlur(image,9)
+    # find circles
+    circles = cv2.HoughCircles(image,method=cv2.HOUGH_GRADIENT
+                                ,dp=1 ,minDist=10
+                                ,param1=15 ,param2=10
+                                ,minRadius=radius
+                                ,maxRadius=radius)
+    if not circles is None:
+        # flatten a dim
+        circles = circles.reshape(circles.shape[-2],3).astype(np.uint)
+        # mark up the display with what we've found
+        for c in circles:
+            cv2.circle(display
+                        ,(c[0],c[1]),c[2]
+                        ,color=Highlight.highlight.value
+                        )
+
+    if not tuner is None:
+        # update Tuner's UI
+        tuner.image = display
+    return
+
+def launch_find_circle():
+    '''
+    This func launches a tuning session. The simplest demo.
+    '''
+    img = cv2.imread(img_sample_2)
+
+    # this launches the tuner
+    img = find_circle(img,42)
+
+    return
+
 if __name__ == "__main__":
-    launch_draw_circle()
+    # launch_draw_circle()
     # launch_draw_circle_on_image()
+    launch_find_circle()
     pass
