@@ -36,9 +36,9 @@ def find_circles(image, radius, tuner=None)
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circles()</code> with a new value for 'radius'. Here's the TunerUI with the trackbar set to 37.
+Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circles()</code> with a new value for 'radius'. Here's the TunerUI with the trackbar set to 39.
 
-![TunerUI](./images/tuner_find_circle_example2.png "TunerUI")
+![TunerUI](./images/tuner_find_circle_example.png "TunerUI")
 And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
 At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code> though, like:

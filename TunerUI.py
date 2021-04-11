@@ -176,7 +176,7 @@ class TunerUI:
     def on_context_changed(self, new_frame):
         if self.ctx is None: return
         self.frame = new_frame
-        title = new_frame.title + f" [{new_frame.index} of {new_frame.tray_length}]"
+        title = f"{self.window}: {new_frame.title} [{new_frame.index} of {new_frame.tray_length}]"
         cv2.setWindowTitle(self.ctx.func_name,title)
         if not self.ctx.func_name_down is None:
             cv2.setWindowTitle(self.ctx.func_name_down, "Downstream: " + title )
