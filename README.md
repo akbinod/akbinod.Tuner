@@ -36,7 +36,7 @@ def find_circle(image, radius, tuner=None)
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> : an openCV window with a trackbar called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circle()</code> with a new value for 'radius'. Here's TunerUI when the trackbar is set to 39.
+Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> : an openCV window with a trackbar called 'radius' which ranges from 0 to 42. The window title begins with the name of your tuned function, and the `overlay` shows the possible actions. Each time you move the slider, <code>TunerUI</code> calls <code>find_circle()</code> with a new value for 'radius'. Here's TunerUI when the trackbar is set to 39.
 
 ![TunerUI](./images/tuner_find_circle_example.png "TunerUI")
 You can find the code for this example in `example.py`.
