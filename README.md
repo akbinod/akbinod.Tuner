@@ -38,16 +38,16 @@ def find_circles(image, radius, tuner=None)
 
 Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code>. It has a slider called 'radius' which ranges from 0 to 42. Each time you move the slider, <code>TunerUI</code> calls <code>find_circles()</code> with a new value for 'radius'.
 
-<code>TunerUI</code> features:
+And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
+
+At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code> though, like:
 <ul>
-<li>grid searching args (systematically exhaust the search space),</li>
+<li>it runs a systematic grid search over the space of your args (exhausts the search space),</li>
 <li>tagging args (note when theta is cold/warm/on-the-money),</li>
 <li>json serialization of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
 
-And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
-
-At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. You'll need to grok a couple other things first... read on, McDuff... (Prof. Bobbick's influence, I swear...)
+<br>So... read on, McDuff... (Prof. Bobbick's influence, I swear...)
 
 <H2>@TunedFunction() Decorator</H2>
 Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, just decorating your function is the quickest way of getting started.
