@@ -54,13 +54,12 @@ Although you do give up some flexibility, compared to explicitly instantiating a
 <H3>Usage</H3>
 
 <ol>
-<li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code> . There should be no other decorators on the function.
-<li>Begin tuning by calling <code>target</code>.</li>
+<li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code>, and add a 'tuner' param to its signature. (Note: there should be no other decorator on <code>target</code>.)
+<li>Begin tuning by calling <code>target</code>. <code>@TunedFunction</code> creates an instance of TunerUI (passed to <code>target</code> via the <code>tuner</code> param). You are now in the tuning loop:</li>
 <ul>
-<li>TunedFunction creates an instance of TunerUI (passed to <code>target</code> via the <code>tuner</code> param).</li>
 <li>Switch to the Tuner GUI and adjust the trackbars.</li>
-<li>Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.</li>
-<li>Update <code>tuner</code> with the processed image from within <code>target</code>. This refreshes the display in Tuner's GUI.</li>
+<li>Tuner will invoke your function on each change made to a trackbar.</li>
+<li>Set <code>tuner.image</code> to the processed image from within <code>target</code>. This refreshes the display in Tuner's GUI.</li>
 </ul>
 <li>End your tuning session by pressing the Esc (or any non function key)</li>
 </ol>
