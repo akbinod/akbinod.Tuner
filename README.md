@@ -42,7 +42,7 @@ And *that* folks, is pretty much it. Here's a good stopping point; try this out 
 
 At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code> though, like:
 <ul>
-<li>it runs a systematic grid search over the space of your args (exhausts the search space),</li>
+<li>it runs a systematic <a href='#gridsearch'>grid search</a> over the space of your args (exhausts the search space),</li>
 <li>tagging args (note when theta is cold/warm/on-the-money),</li>
 <li>json serialization of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
@@ -188,7 +188,7 @@ The name of the output file begins with the function being tuned; and within the
 The purpose of tuning is to find args that work for the task at hand. It might be a somewhat lengthy process, and this feature lets you tag some theta with a word that you can search for in the output file. I like using 'avoid', 'exact' and 'close', the defaults you see in the UI. You could customize this. Modify constants.py and update the `Tags` enum. Code comments there will explain your options. Pick a scheme that works for you, and stick with it. I'd recommend something like glom or jsonpath-ng to search the saved invocation tree.
 
 
-<H4>Grid Search</H4>
+<H4 id='gridsearch'>Grid Search</H4>
 If you are not a "parameter whisperer", you're going to turn to brute force tuning at some point; I did. So, with 3 params, each of which could take 5 values, you're likely to be annoyed by the process, and more likely to make a costly mistake. The worst of tuning, for me, is the prospect of missing the "right set of args", thanks to NOT clicking through the various settings methodically. Fortunately, there's code for that.
 
 <br>This feature runs through a cartesian product of the parameter values you have set up. <code>target</code> is invoked with each theta, and Tuner waits indefinitely for your input before it proceeds to the next theta.
