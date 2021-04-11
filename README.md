@@ -50,22 +50,22 @@ And *that* folks, is pretty much it. Here's a good stopping point; try this out 
 At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to `Tuner` though, e.g., how it runs a systematic grid search over the space of your args. You'll need to grok a couple other things first, so... read on, McDuff... (Prof. Bobbick's influence, I swear...)
 
 <H2>@TunedFunction() Decorator</H2>
-Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, this is the quickest way of getting started with tuning your code.
+Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, just decorating your function is the quickest way of getting started.
 <H3>Usage</H3>
 
-<ul>
+<ol>
 <li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code> . There should be no other decorators on the function.
-<li>Begin your tuning session by calling your function. This is the <b>launch call</b>.</li>
+<li>Begin tuning by calling <code>target</code>.</li>
+<ul>
+<li>TunedFunction creates an instance of TunerUI (passed to <code>target</code> via the <code>tuner</code> param).</li>
+<li>Switch to the Tuner GUI and adjust the trackbars.</li>
+<li>Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.</li>
+<li>Update <code>tuner</code> with the processed image from within <code>target</code>. This refreshes the display in Tuner's GUI.</li>
+<li>Remain in the tuning loop until you keyboard exit out of the loop. Please see 'saving' below.</li>
+</ul>
+<li>End your tuning session by pressing the Esc (or any non function key)</li>
+</ol>
 
-- TunedFunction creates an instance of TunerUI (passed to <code>target</code> via the <code>tuner</code> param) .
-- Switch to the Tuner GUI:
-	- Adjust the trackbars.
-	- Tuner will invoke your function on each change made to a trackbar. These are referred to as <b>tuning calls</b>.
-	- Update <code>tuner</code> with the processed image before you return from <code>target</code>. This refreshes the display in Tuner's GUI.
-	- Remain in the tuning loop until you keyboard exit out of the loop. Please see 'saving' below.
-<li>End your tuning session by pressing the escape (or any non function key)</li>
-</ul>
-</ul>
 
 To restore normal operation of your function, comment out or delete the @TunedFunction() decorator.
 
