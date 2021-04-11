@@ -164,7 +164,7 @@ Saving behavior is determined principally by a couple of statics in TunerConfig.
 <li><b>results</b>: This could be explicitly set by your code like so <code>tuner.results=...</code>. If you do not set this value, tuner captures the values returned by <code>target</code> and saves them as long as they are json serializable</li>
 <li><b>errored</b>: Whether an error took place during <code>target</code> invocation.</li>
 <li><b>error</b>: These are execution errors encountered during <code>target</code> invocation. BTW, the most recent call is first in this formatted list, not last as you would expect from typical python output.</li>
-<li><b> [insert your tag here] </b>: A complete list of all the custom tags with the value set to false, unless you explicitly tag the invocation, in which case the particular tafs are set to <code>True</code>.</li>
+<li><b> [insert your tag here] </b>: A complete list of all the custom tags with the value set to false, unless you explicitly tag the invocation, in which case the particular tag(s) are set to <code>True</code>.</li>
 </ul>
 An invocation is pushed into the output file when:
 <ul>
@@ -240,13 +240,15 @@ Which is basically what you do with <code>@TunedFunction</code>, and with less c
 <ul>
 <li>Tuner curries args to formal parameters which match by name to a tracked parameter.</li>
 <li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>? Well, just add a tracked parameter for that (without adding a parameter to your function), and access its value off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
-<li><code>tuner.begin()</code> accepts a carousel argument. A carousel is a list of images that you want tuner to deal with as a set. </li>
+<li id='carousel'><code>tuner.begin()</code> accepts a carousel argument.</li>
 <ul>
+<li>A carousel is a group of images that you want tuner to deal with as a set. </li>
 <li>You typically want to do this to find parameters that will work across all images in the set.</li>
 <li>Use the helper call <code>tuner.carousel_from_images()</code> to set up a carousel. This takes 2 lists.
 <ul>
 <li>The first is the list of parameters to <code>target</code> that take images. <code>target</code> might work with multiple images, and this list is where you specify the names of those parameters which expect images.</li>
 <li> The second is a list of paths to image files. If <code>target</code> works with 2 images, then each element of this second list must be a tuple of two image paths. If it works with three images, then each element must be a tuple of three image paths, et cetera. </li>
+<li>When <code>Tuner</code> is aware of file paths, it uses the file name in <code>TunerUI</code>'s window title, (instead of just 'frame'.</li>
 <ul>
 </ul>
 </ul>
@@ -259,7 +261,7 @@ You cannot mix Tuner with partials and decorators (things blow up unperdictably)
 Some of the gains are:
 <ul>
 <li>Being able to tune hyper-parameters, or other control variables, without having them be parameters to your function. This keeps your signature what your auto-grader expects. Once ascertained, you should remove these from <code>Tuner</code></li>
-<li>Process a carousel of images, remembering settings between images.</li>
+<li>Process a <a href=#carousel>carousel of images</a>, remembering settings between images.</li>
 <li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> before you set <code>tuner.image</code>. This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction</code> as well.</li>
 <li>View the results of two processes in side by side windows. A few use cases for side-by-side comparison of images:
 <ul>
