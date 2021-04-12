@@ -293,7 +293,8 @@ If you don't see the overlay after each trackbar change, you are missing <code>Q
 ### Important Safety Tips
 I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but caveat emptor...
 
-Arguments curried into your functions follow usual call semantics, so modifying those args will have the usual side effects (tldr: make a copy of `image` before working on it). Accessing tuner.image always gives you a fresh copy of the image - but this is the exception.
+Arguments curried into your functions follow usual call semantics, so modifying those args will have the usual side effects. Accessing tuner.image always gives you a fresh copy of the image - but this is the exception.
+(tldr: work on a copy of the `image` parameter - not directly on it, or changes accumulate)
 
 ### Licensing
 It's only licensed the way it is to prevent commercial trolling. For all other purposes...
