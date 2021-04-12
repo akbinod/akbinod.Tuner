@@ -22,8 +22,9 @@ class Carousel():
 
         self.params = None if (not params is None and len(params) == 0) else params
         # this could be an image or a video frame generator
+        self.frame_gen = None
         # we seem to need a redundant next to get the ball rolling
-        self.frame_gen = next(frame_gen)
+        if not frame_gen is None: self.frame_gen = next(frame_gen)
 
         return
 

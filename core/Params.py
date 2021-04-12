@@ -100,7 +100,6 @@ class Params():
             # the user needs to set up a param called tuner
             raise ValueError(f"There must be a parameter to the tuned function called 'tuner'.")
 
-
         # DO NOT get rid of 'self' here
         # if self.target_params[0] == "self":
         #     self.target_params.pop(0)
@@ -357,6 +356,7 @@ class Params():
 
         # get a default if we don't have a tuned arg
         keys_def = [arg for arg in self.target_params if (arg not in theta and arg in self.target_defaults)]
+        # if we have images, send copies of those images
         kwargs.update({arg:self.target_defaults[arg] for arg in keys_def})
 
         return kwargs

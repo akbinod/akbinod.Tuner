@@ -1,10 +1,9 @@
-from core.PropertyBag import PropertyBag
-
+import numpy as np
 from core.PropertyBag import PropertyBag
 class Frame(PropertyBag):
     default_title = "frame"
     def __init__(self) -> None:
-        self.image = None
+        self.__image = None
         self.title = Frame.default_title
 
         self.index =  0
@@ -18,4 +17,12 @@ class Frame(PropertyBag):
         self.tn_main = None
         self.tn_down = None
 
+        return
+
+    @property
+    def image(self):
+        return self.__image.copy()
+    @image.setter
+    def image(self, val):
+        self.__image = val
         return

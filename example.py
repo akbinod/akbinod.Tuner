@@ -12,65 +12,6 @@ img_sample_2 = "./images/tuner_sample_bw.jpg"
 img_sample_3 = "./images/tuner_circle.png"
 
 @TunedFunction()
-def draw_circle_on_image(image, radius, color, center, tuner):
-    img = np.copy(image)
-    img = cv2.circle(img,center=center
-                        ,radius=radius
-                        ,color=color
-                        ,thickness=-1)
-    tuner.image = img
-    tuner.result = {"result":"OK"}
-    return image
-
-def launch_draw_circle_on_image():
-    '''
-    This func launches a tuning session.
-    Demonstrates using tuples, lists and dicts to init Tuner.
-    '''
-    img = cv2.imread(img_sample_1)
-
-    # circles can be drawn in one of these colors
-    colors = {
-        "red" : (0,0,255)
-        , "green": (0,255,0)
-        , "blue": (255,0,0)
-    }
-    # the center will be one of these vals
-    centers = [(200,200), (300,300), (400,400), (500,500)]
-    # radius will max out at 100, have a min val of 20 and default to 50
-    mmd = (100,20,50)
-
-    # this launches the tuner
-    img = draw_circle_on_image(img,mmd,colors,centers)
-
-    return
-
-@TunedFunction()
-def draw_circle(image, radius, tuner):
-    '''
-    This is a target of tuning.
-    '''
-    img = np.copy(image)
-    img = cv2.circle(img,center=(200,200)
-                        ,radius=radius
-                        ,color=0
-                        ,thickness=4)
-    tuner.image = img
-    tuner.result = {"result":"OK"}
-    return image
-
-def launch_draw_circle():
-    '''
-    This func launches a tuning session. The simplest demo.
-    '''
-    img = cv2.imread(img_sample_2)
-
-    # this launches the tuner
-    img = draw_circle(img,100)
-
-    return
-
-@TunedFunction()
 def find_circle(image, radius,tuner=None):
     # show the original
     display = image.copy()
@@ -99,7 +40,7 @@ def find_circle(image, radius,tuner=None):
         tuner.image = display
     return
 
-def launch_find_circle():
+def demo_find_circle():
     '''
     This func launches a tuning session. The simplest demo.
     '''
@@ -110,36 +51,134 @@ def launch_find_circle():
 
     return
 
-def markup_image(image,txt=None):
-    if txt is None or txt == "": txt = "Kilroy was here."
-    pt = (100,100)
-    return cv2.putText(image
-                , text = txt
-                ,org= (50,50)
-                ,fontFace = PUT_TEXT_FONT
-                ,fontScale=PUT_TEXT_NORMAL
-                ,color=Highlight.highlight.value
-                ,thickness=HIGHLIGHT_THICKNESS_HEAVY
-                )
-def tuner_inst_target(image, animal, tuner=None):
-    image = markup_image(image,animal)
-    tuner.image = image
-    return (99, 'red balloons')
+def demo_decorator_2():
+    '''
+    Demonstrates using tuples, lists and dicts with TunedFunction()
+    '''
+    @TunedFunction()
+    def draw_circle_on_image(image, radius, color, center, tuner):
+        img = np.copy(image)
+        img = cv2.circle(img,center=center
+                            ,radius=radius
+                            ,color=color
+                            ,thickness=-1)
+        tuner.image = img
+        tuner.result = {"result":"OK"}
+        return image
 
-def launch_instantiate():
-    tuner = TunerUI(tuner_inst_target)
+    img = cv2.imread(img_sample_1)
+
+    # circles can be drawn in one of these colors
+    colors = {
+        "red" : (0,0,255)
+        , "green": (0,255,0)
+        , "blue": (255,0,0)
+    }
+    # the center will be one of these vals
+    centers = [(50,50), (100,100), (200,200), (300,300)]
+    # radius will max out at 100, have a min val of 20 and default to 50
+    mmd = (100,20,50)
+
+    # this launches the tuner
+    img = draw_circle_on_image(img,mmd,colors,centers)
+
+    return
+
+def demo_instantiation():
+    '''
+    This demonstratess:
+        a simple instantiation and the use of begin();
+        using two displays
+    '''
+    def pre_process(tuner=None):
+        image = tuner.image
+        image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+        image = cv2.medianBlur(image,7)
+        image = cv2.Canny(image,15,10)
+        tuner.image = image
+        return
+    def draw_circle(image, radius, tuner):
+        '''
+        This is a target of tuning.
+        '''
+        img = np.copy(image)
+        img = cv2.circle(img,center=(200,200)
+                            ,radius=radius
+                            ,color=0
+                            ,thickness=4)
+        tuner.image = img
+        tuner.result = {"result":"OK"}
+        return image
+
+
+    # watch 2 functions
+    tuner = TunerUI(draw_circle,func_downstream=pre_process)
+    # this is the trackbar for radius
+    tuner.track("radius",max=120,min=80,default=100)
+    # set up a carousel with just one image
+    car = tuner.carousel_from_images(
+                        ["image"]       #this is the parameter to feed images to
+                        ,[img_sample_2] #these are the images to feed into the parameter above
+                        )
+    # this launches the tuner
+    tuner.begin(car)
+
+    return
+
+def demo_instantiation_2():
+    '''
+    Demonstrates:
+        instantiation and begin();
+        the use of lists (of tuples), and dicts
+        creating a carousel for "2 image" functions
+        Note: `target` is local to this function, but need not be
+    '''
+    def target(image, other_image, capital, tuner=None):
+        image = image.copy()
+        image = markup_image(image,str(capital))
+        tuner.image = image
+        mu = np.mean(other_image)
+        return ('other_image mean', mu)
+
+    def markup_image(image,txt=None):
+        if txt is None or txt == "": txt = "Kilroy was here."
+        pt = (100,100)
+        return cv2.putText(image
+                    , text = txt
+                    ,org= (50,50)
+                    ,fontFace = PUT_TEXT_FONT
+                    ,fontScale=PUT_TEXT_NORMAL
+                    ,color=Highlight.highlight.value
+                    ,thickness=HIGHLIGHT_THICKNESS_HEAVY
+                    )
+
+    tuner = TunerUI(target)
     # add parameters to tune
     tuner.track("foo", 3,1,2)
-    tuner.track_list("animal",data_list=["dag","cat","monkey"],default_item="cat",return_index=False)
-    tuner.track_dict("bug",{"ladybug":1,"praying_mantis":2,"caterpillar":2})
-    # create a carousel
-    car = tuner.carousel_from_images(["image"], [img_sample_1])
+    tuner.track_list("capital"
+                        ,data_list=[("US","Washington DC"),("India","New Delhi"),("UK","London")]
+                        ,default_item=1
+                        ,return_index=False)
+    tuner.track_dict("bug"
+                    ,{"ladybug":1,"praying_mantis":2,"caterpillar":2}
+                    ,default_item_key="caterpillar"
+                    ,return_key=True
+                    )
 
+    # Create a carousel of 2 simultaneous images
+    # If you were tracking motion from frame to frame, your
+    # tuner initialization code might look something like this.
+    image_params = ["image", "other_image"]
+    images = [(img_sample_1,img_sample_2), (img_sample_2,img_sample_3)]
+    car = tuner.carousel_from_images(image_params, images)
+
+    # kick off the tuning
     tuner.begin(car)
     print(tuner.bug)
 
     return
-def launch_grid_search():
+
+def demo_grid_search():
     def rotation(img_in, angle, reshape, tuner):
     # def rotation(img_in, angle, reshape=True, tuner=None):
     # def rotation(img_in, angle=45, reshape=True, tuner=None):
@@ -178,12 +217,16 @@ def launch_grid_search():
     return
 
 if __name__ == "__main__":
+    # good place to set statics
     TunerConfig.save_style = SaveStyle.overwrite | SaveStyle.tagged
     TunerConfig.output_dir = "./wip"
 
-    # launch_draw_circle()
-    # launch_draw_circle_on_image()
-    # launch_find_circle()
-    # launch_instantiate()
-    launch_grid_search()
+    # simplest example of TunedFunction() from the readme
+    demo_find_circle()
+    # demo_decorator_2()
+
+    # demo of explicit instantiation: begin() and grid_search()
+    # demo_instantiation()
+    # demo_instantiation_2()
+    # demo_grid_search()
     pass

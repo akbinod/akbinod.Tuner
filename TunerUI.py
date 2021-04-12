@@ -179,7 +179,9 @@ class TunerUI:
         title = f"{self.window}: {new_frame.title} [{new_frame.index} of {new_frame.tray_length}]"
         cv2.setWindowTitle(self.ctx.func_name,title)
         if not self.ctx.func_name_down is None:
-            cv2.setWindowTitle(self.ctx.func_name_down, "Downstream: " + title )
+            # keep this in sync with the main window title
+            title = f"{self.ctx.func_name_down }: {new_frame.title} [{new_frame.index} of {new_frame.tray_length}]"
+            cv2.setWindowTitle(self.ctx.func_name_down, title )
 
         return
 

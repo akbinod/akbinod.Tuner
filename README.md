@@ -210,60 +210,64 @@ This is about as much code as I can give you without running afoul of the GA Tec
 </ol>
 
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
-<H2>TunerUI Class</H2>
+<H2>TunerUI Class/Explicit Instantiation</H2>
 
-Most of the basics have been detailed above, and this just lists the differences.
-
-With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, but gain more control over features. If you like the UX of <code>@TunedFunction</code>, see the benefits section down below to determine if it's worth it to wade through the rest of this.
+With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, but gain more control over features. If you like the UX of <code>@TunedFunction</code>, see the <a href='#explicit'>benefits </a> section below to determine if it's worth it to wade through the rest of this.
 
 Instead of TunedFunction, you import TunerUI and TunerConfig. TunerUI is the facade you work with. You could ignore TunerConfig if the default settings (e.g. when and where to save) work for you.
 
-The basic pattern is about the same:
-1. import TunerUI.
-2. accept a <code>tuner</code> param with the default value of None...
-3. set <code>tuner.image</code> to the processed image before you return...
-4. optionally - set <code>tuner.results</code> to something that is json serializable before you return
-
-Which is basically what you do with <code>@TunedFunction</code>, and with less code to boot.
+Workflow:
 
 <ol>
-<li>Instantiate tuner, choosing between one and two functions to watch. </li>
+<li>import TunerUI</li>
+<li>Instantiate tuner, choosing between one and <a href='#downstream'> two </a>functions to watch : <code>main</code> and <code>downstream</code>. </li>
 <ul>
-<li>There's only one set of trackbars, but you could have two distinct functions called by Tuner - main and downstream. </li>
-<li>When <code>downstream</code> accesses <code>tuner.image</code>, it too gets a fresh copy the current image being processed. To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.</li>
+<li>Each func must accept a <code>tuner</code> param with the default value of None...</li>
+</ul>
+<li>Make calls to <code>tuner.track()</code>, <code>track_boolean()</code>, <code>track_list()</code> or <code>track_dict()</code> to define tracked/tuned parameters to <code>main</code></li>
+<li>Make a call to <code>tuner.begin()</code>, or to <code>tuner.grid_search()</code>. Each of these calls accepts a <a href='carousel'>carousel</a>. You do not use a launch call, as you did with <code>TunedFunction()</code>.
+<ul>
+<li>This launches tuner, and then, as usual, each change to a trackbar results in a tuning call to <code>target</code>. </li>
+<li>Tuner passes args to formal parameters which match by name to a tracked parameter.</li>
+<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>? Well, just add a tracked parameter for that (without adding a parameter to your function), and access its value off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
+</ul>
+<li>set <code>tuner.image</code> to the processed image before you return...</li>
+<li>optionally - set <code>tuner.results</code> to something that is json serializable before you return.</li>
+</ol>
+<br>You cannot mix Tuner with partials and decorators (things blow up unperdictably) - just the func please.
+<H4 id='downstream'>Watching Downstream Functions</H4>
+You could have two distinct functions called by Tuner - <code>main</code> (called first) and <code>downstream</code> (called after <code>main</code>).
+<ul>
+<li>There's only one set of trackbars - these appear on <code>main</code>'s window.</li>
+<li>Args (other than tuner) are not curried into <code>downstream</code>, so set defaults.</li>
+<li>When <code>downstream</code> accesses <code>tuner.image</code>, it gets a fresh copy of the current image being processed. To get the image processed by <code>main</code>, access <code>tuner.main_image</code>.</li>
 <li><code>tuner.image</code> and <code>tuner.results</code> set from <code>main</code> are displayed in the main window (the one with the trackbars).</li>
-<li><code>tuner.image</code> and <code>tuner.results</code> set in <code>downstream</code> are displayed in a second window which does not have trackbars. Usually, the downstream image obscures the main one; you'll need to move it out of the way.</li>
+<li><code>tuner.image</code> and <code>tuner.results</code> set in <code>downstream</code> are displayed in the <code>downstream</code> window which does not have trackbars. Usually, the downstream image obscures the main one on first show; you'll need to move it out of the way.</li>
 <li>Tuner will save images separately on F2, but will combine the results of both, along with args (tuned parameters) and writes it to one json file when you press F3. Remember to keep your results compatible with json serialization.</li>
 </ul>
-<li>Make calls to <code>tuner.track()</code>, <code>track_boolean()</code>, <code>track_list()</code> or <code>track_dict()</code> to define tracked/tuned parameters</li>
-<li>Make a call to tuner.begin(). [You do not use a launch call, like you did with <code>TunedFunction()</code>]. This launches tuner, and then, as usual, each change to a trackbar results in a tuning call to <code>target</code>.
+<H4 id='carousel'>Carousels</H4>
+A carousel is a group of images that you want tuner to deal with as a set. You typically want to do this to find parameters that work well across all images in the set. You are setting up a list of images (full path names) and specifying the parameters they need to be passed to.
 <ul>
-<li>Tuner curries args to formal parameters which match by name to a tracked parameter.</li>
-<li>All tracked parameters are also accessible off <code>tuner</code>. E.g., <code>tuner.radius</code>. This enables you to tune variables that are not part of the formal arguments to your function. Wondering if you should set <code>reshape=True</code> in a call to <code>cv2.resize()</code>? Well, just add a tracked parameter for that (without adding a parameter to your function), and access its value off <code>tuner</code>. The idea is to keep your function signature the same as what the auto-grader would expect - minimizing those 1:00am exceptions that fill one with such bonhomie. These args are also accesible as a dict via tuner.args</li>
-<li id='carousel'><code>tuner.begin()</code> accepts a carousel argument.</li>
-<ul>
-<li>A carousel is a group of images that you want tuner to deal with as a set. </li>
-<li>You typically want to do this to find parameters that will work across all images in the set.</li>
 <li>Use the helper call <code>tuner.carousel_from_images()</code> to set up a carousel. This takes 2 lists.
 <ul>
-<li>The first is the list of parameters to <code>target</code> that take images. <code>target</code> might work with multiple images, and this list is where you specify the names of those parameters which expect images.</li>
-<li> The second is a list of paths to image files. If <code>target</code> works with 2 images, then each element of this second list must be a tuple of two image paths. If it works with three images, then each element must be a tuple of three image paths, et cetera. </li>
-<li>When <code>Tuner</code> is aware of file paths, it uses the file name in <code>TunerUI</code>'s window title, (instead of just 'frame'.</li>
+<li>The first is the list of names of parameters in <code>target</code> that take images. <code>target</code> might work with multiple images, and this list is where you specify the name of each parameter that expects an image.</li>
+<li> The second is a list of image files (full path name). Each element of this list should be a tuple of file names.</li>
 <ul>
+<li>If <code>target</code> works with 2 images, then each element of this second list must be a tuple of two image paths.</li>
+<li>If it works with three images, then each element must be a tuple of three image paths, et cetera. </li>
 </ul>
 </ul>
+<li>When <code>Tuner</code> is aware of image files, it uses the file name in <code>TunerUI</code>'s window title, (instead of just 'frame').</li>
+<li>You can specify openCV imread codes to be used when reading files.</li>
+<li>A video file can be used as a frame generator [untested as of April 2021]</li>
 </ul>
-</ul>
-</ol>
 
-You cannot mix Tuner with partials and decorators (things blow up unperdictably) - just the func please.
-
-Some of the gains are:
+<H4 id='explicit'>Why bother with explicit instantiation</H4>
 <ul>
 <li>Being able to tune hyper-parameters, or other control variables, without having them be parameters to your function. This keeps your signature what your auto-grader expects. Once ascertained, you should remove these from <code>Tuner</code></li>
 <li>Process a <a href=#carousel>carousel of images</a>, remembering settings between images.</li>
 <li>Insert a thumbnail into the main image (set <code>tuner.thumbnail</code> before you set <code>tuner.image</code>. This is useful, e.g., when you are matching templates. You could do this with <code>@TunedFunction()</code> as well.</li>
-<li>View the results of two processes in side by side windows. A few use cases for side-by-side comparison of images:
+<li>View the results of <a href='#downstream'>two processes </a> in side by side windows. A few use cases for side-by-side comparison of images:
 <ul>
 <li>Show your pre-processing output in <code>main</code>; and traffic sign identification output in <code>downstream</code>.</li>
 <li><code>match_template()</code> output in one vs. <code>harris_corners()</code> output in the other.</li>
@@ -274,7 +278,7 @@ Some of the gains are:
 <li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
 
-Apart from the few differences above, <code>TunerUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. You do have access to a few additional bells and whistles with the latter, and the docstrings should explain those.
+Apart from the few differences above, <code>TunerUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. You do have access to a few additional bells and whistles with the latter, and the docstrings should provide more detail.
 
 The accompanying <code>example.py</code> illustrates some uses. Play around, and let me know if you think of ways to improve this.
 </p>
@@ -286,8 +290,10 @@ If you're in CS-6476, you've installed <code>opencv-contrib-python</code>. If no
 If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contrib-python</code>
 If you don't see the overlay after each trackbar change, you are missing <code>Qt backend</code>
 
-### Important Safety Tip
+### Important Safety Tips
 I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but caveat emptor...
+
+Arguments curried into your functions follow usual call semantics, so modifying those args will have the usual side effects (tldr: make a copy of `image` before working on it). Accessing tuner.image always gives you a fresh copy of the image - but this is the exception.
 
 ### Licensing
 It's only licensed the way it is to prevent commercial trolling. For all other purposes...

@@ -369,10 +369,7 @@ class Tuner:
 
     @property
     def image(self):
-        '''
-        Always return a fresh copy of the user supplied image.
-        '''
-        return np.copy(self.frame.image)
+        return self.frame.image
 
     @image.setter
     def image(self, val):
