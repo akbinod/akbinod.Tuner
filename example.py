@@ -6,7 +6,7 @@ import scipy.ndimage as nd
 from TunedFunction import TunedFunction
 from TunerUI import TunerUI
 from TunerConfig import TunerConfig
-from core.constants import *
+from constants import *
 img_sample_1 = "./images/tuner_sample_color.png"
 img_sample_2 = "./images/tuner_sample_bw.jpg"
 img_sample_3 = "./images/tuner_circle.png"

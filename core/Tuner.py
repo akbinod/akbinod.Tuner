@@ -19,7 +19,7 @@ from TunerConfig import TunerConfig
 from core.Params import Params
 from core.PropertyBag import PropertyBag
 from core.Carousel import Carousel
-from core.constants import *
+from constants import *
 from core.Frame import Frame
 
 class Tuner:

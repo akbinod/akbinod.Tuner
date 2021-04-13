@@ -4,5 +4,5 @@ from TunedFunction import TunedFunction
 from TunerUI import TunerUI
 from TunerConfig import TunerConfig
 
-from core.constants import SaveStyle, Tags, Highlight
+from constants import SaveStyle, Tags, Highlight
 from core.PropertyBag import PropertyBag

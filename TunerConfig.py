@@ -1,4 +1,4 @@
-from core.constants import Tags, SaveStyle
+from constants import Tags, SaveStyle
 import os
 import copy
 

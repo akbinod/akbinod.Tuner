@@ -1,6 +1,6 @@
 from core.Frame import Frame
 import cv2
-from core.constants import *
+from constants import *
 
 class VideoFrameGenerator():
     def __init__(self, full_path:str, gs:FrameGenStyle = FrameGenStyle.yield_all_new & FrameGenStyle.yield_1) -> None:

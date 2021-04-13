@@ -6,7 +6,7 @@ from TunerConfig import TunerConfig
 from core.Tuner import Tuner
 from core.Params import Params
 from core.Carousel import *
-from core.constants import *
+from constants import *
 
 class TunerUI:
     def __init__(self, func_main, *
