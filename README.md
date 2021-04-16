@@ -104,7 +104,7 @@ When an argument in the launch call is:
 <li>boolean</li>
     The trackbar will have two settings <code>0, 1 </code> which correspond to <code>False, True</code>. The default value is whatever you have passed in. Tuner will call target with one of <code>False, True</code> depending on trackbar selection.
 <li>list</li>
-This is a good way to specify non int values of some managable range. Strings, floats, tuples all go in lists.
+This is a good way to specify non int values of some managable length. Strings, floats, tuples all go in lists.
 
 - The trackbar will have as many ticks as there are items in the list.
 - Changing the trackbar selects the corresponding item from the list.
@@ -158,7 +158,7 @@ The basic idea behind Tuner is:
 Saving behavior is determined principally by a couple of statics in TunerConfig.
 <p><b>TunerConfig.output_dir</b>: by default this is set to `./wip` Change this before you use the other functions of Tuner.</p>
 <p><b>TunerConfig.save_style</b>: This should be set to some valid combination of the flags found in `constants.SaveStyles`. The default is to overwrite the contents of the output file on each run, and to only save when explicitly asked to. </p>
-<p>The following are always tracked, although only saved to file under certain circumstances:
+<p>The following are always tracked, although only <a href='serialized'> serialized</a> to file under certain circumstances:
 <ul>
 <li><b>args</b>: The set of args to an invocation.</li>
 <li><b>results</b>: This could be explicitly set by your code like so <code>tuner.results=...</code>. If you do not set this value, tuner captures the values returned by <code>target</code> and saves them as long as they are json serializable</li>
@@ -166,7 +166,7 @@ Saving behavior is determined principally by a couple of statics in TunerConfig.
 <li><b>error</b>: These are execution errors encountered during <code>target</code> invocation. BTW, the most recent call is first in this formatted list, not last as you would expect from typical python output.</li>
 <li><b> [insert your tag here] </b>: A complete list of all the custom tags with the value set to false, unless you explicitly tag the invocation, in which case the particular tag(s) are set to <code>True</code>.</li>
 </ul>
-An invocation is pushed into the output file when:
+<a id='serialized'> An invocation is serialized to the output file when:
 <ul>
 <li>You explicitly save  - F3.</li>
 <li>You tag an invocation.</li>
@@ -180,7 +180,9 @@ The name of the output file begins with the function being tuned; and within the
 <ul>
 <li>args (contains each element of theta)</li>
 <li>results (contains the saved or captured results of <code>target</code>)</li>
-<li>each of the custom tags that you apply via the Tuner GUI</li>
+<li>the custom tags that you set up in Tuner GUI, defaulting to False</li>
+<li>errored</li>
+<li>errors (contains your execution exceptions)</li>
 </ul>
 </ul>
 </ul>
@@ -288,13 +290,15 @@ Your experience of this GUI is going to be determined by the version of various 
 If you're in CS-6476, you've installed <code>opencv-contrib-python</code>. If not, might I suggest...
 
 If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contrib-python</code>
-If you don't see the overlay after each trackbar change, you are missing <code>Qt backend</code>
+If you don't see the overlay menu, you are missing <code>Qt backend</code>
 
 ### Important Safety Tips
 I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but caveat emptor...
 
 Arguments curried into your functions follow usual call semantics, so modifying those args will have the usual side effects. Accessing tuner.image always gives you a fresh copy of the image - but this is the exception.
 <br>(tldr: work on a copy of the `image` parameter - not directly on it, or else side effects will accumulate...)
+
+Don't forget to remove the @TunedFunction() decorator; the auto-grader won't much care for it :)
 
 ### Licensing
 It's only licensed the way it is to prevent commercial trolling. For all other purposes...
