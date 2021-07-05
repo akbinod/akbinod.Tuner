@@ -11,6 +11,7 @@ from constants import *
 class TunerUI:
     def __init__(self, func_main, *
                 , func_downstream = None
+                , pinned_params = None
                 ):
         '''
         Tuning interface for users.
@@ -25,7 +26,7 @@ class TunerUI:
         # set up config
         self.config = TunerConfig()
         # args handler - only deals with the main func
-        self._parms = Params(self, func_main)
+        self._parms = Params(self, func_main, pinned_params)
         # tuning engine
         self.ctx = Tuner(self,self.config,self._parms, func_main,func_downstream)
 

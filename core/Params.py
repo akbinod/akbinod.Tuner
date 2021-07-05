@@ -35,9 +35,10 @@ class Params():
     This class should be left as is.
     tuner_ui: The main UI class that users interact with. E.g., an instance of TunerUI.
     '''
-    def __init__(self, tuner_ui, func) -> None:
+    def __init__(self, tuner_ui, func, pinned_parms) -> None:
 
         self.ui = tuner_ui
+        self.pinned_params = pinned_parms
         self.tuned_params = {}
         self.target_params = {}
         self.target_defaults = {}
@@ -174,6 +175,7 @@ class Params():
         # We are going to use the values in the call
         # to create tuning controls.
 
+
         # # we're going to ignore the 'self' param
         # a_off = 1 if call_is_method else 0
         a_off = 0
@@ -195,15 +197,27 @@ class Params():
             parm = self.aspec.args[i]
             # arg passed in to the call that kicks off tuning
             val = call_args[i]
-            create_param(parm,val)
+            if parm in self.pinned_params:
+            # We don't need to create a trackbar if the
+            # user wants to pin the arg received into this parm
+            # but we need to update the default from null to this
+                self.target_defaults[parm] = val
+            else:
+                create_param(parm,val)
 
         # Next deal with the kwargs in this call if
         # they fall within the kwonly args we plan to handle.
         # The way to pin an arg is to specify the default in the function
         # signature, and omit it from the set up call.
         # Therefore, if it appears here, it's fair game as a tunable param
-        usable = [parm for parm in call_kwargs if parm in self.target_params]
+        # When the user explicitly calls out some parms as being pinned, we skip those as well
+        usable = [parm for parm in call_kwargs if parm in self.target_params and parm not in self.pinned_params]
         for parm in usable: create_param(parm,call_kwargs[parm])
+
+        # now update the defaults from the kw args if those have been pinned
+        argdef = {parm:call_kwargs[parm] for parm in call_kwargs if parm in self.pinned_params}
+        # push the Nones over to our list of defaults
+        self.target_defaults.update(argdef)
 
         # done defining what to track
 

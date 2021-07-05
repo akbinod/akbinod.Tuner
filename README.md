@@ -42,7 +42,7 @@ Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> : an 
 
 <br>And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
-At this point, you are using a thin wrapper over openCV trackbars; albeit, one that's easier to use and less disruptive to your code. There's more to <code>TunerUI</code>, like:
+At this point, you are using a thin wrapper over openCV trackbars; one that's easier to use and less disruptive to your code. You also get to skip learning about the openCV HighGUI and trackbars APIs. There's more to <code>TunerUI</code>, like:
 <ul>
 <li>it runs a systematic <a href='#gridsearch'>grid search</a> over the space of your args (exhausts the search space),</li>
 <li><a href='#tag'> tagging</a> args (note when theta is cold/warm/on-the-money),</li>
