@@ -1,4 +1,5 @@
 import os
+from platform import java_ver
 import numpy as np
 import cv2
 import scipy.ndimage as nd
@@ -216,17 +217,75 @@ def demo_grid_search():
 
     return
 
+def demo_tuner_from_json():
+    def random_preprocess(img_in, curried, tuner=None):
+        print(f"received {curried} in curried. No other action here.")
+        tuner.image = img_in
+        return
+    json_def={
+        "img_mode":{
+            "type":"list"
+            ,"data_list":["grayscale","blue","green","red"]
+            ,"default":"grayscale"
+            ,"display_list":["grayscale","blue","green","red"]
+            ,"return_index":False
+            }
+        ,"blur":{
+            "type":"boolean"
+            ,"default":True
+            }
+        ,"blur_ksize":{
+            "type":"list"
+            ,"data_list":[(3,3), (5,5), (7,7)]
+            ,"default":0
+            }
+        ,"blur_sigmaX":{
+            "max":20
+            ,"min":1
+            ,"default":4
+            }
+        ,"contrast":{
+            "type":"boolean"
+            ,"default":False
+            }
+        # this next one will be passed in unchanged
+        ,"curried":{
+            "pinned":42
+            }
+        # this next one will be ignored by tuner
+        ,"bogus_curried":{
+            "pinned":42
+            }
+        ,"random_json":{
+            "type":"dict"
+            ,"dict_like":{
+                "a":"apple"
+                ,"b":"banana"
+                ,"c":"cherry"
+            }
+        }
+        }
+
+    tuner = TunerUI.tuner_from_json(random_preprocess,None, json_def=json_def)
+    c = []
+    c.append(os.path.realpath(img_sample_1))
+    c.append(os.path.realpath(img_sample_2))
+    c = tuner.carousel_from_images(["img_in"],c)
+    tuner.begin(c)
+
+    return
 if __name__ == "__main__":
     # good place to set statics
     TunerConfig.save_style = SaveStyle.overwrite | SaveStyle.tagged
     TunerConfig.output_dir = "./wip"
 
     # simplest example of TunedFunction() from the readme
-    demo_find_circle()
+    # demo_find_circle()
     # demo_decorator_2()
 
     # demo of explicit instantiation: begin() and grid_search()
     # demo_instantiation()
     # demo_instantiation_2()
     # demo_grid_search()
+    demo_tuner_from_json()
     pass

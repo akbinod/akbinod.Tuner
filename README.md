@@ -70,13 +70,15 @@ Although you do give up some flexibility, compared to explicitly instantiating a
 To restore normal operation of your function, comment out or delete the @TunedFunction() decorator.
 
 <H3>
-Tracked Parameters/What is tuned?
+Tracked/Pinned Parameters, or What is tuned?
 </H3>
-Positional and keyword parameters (not varargs, or varkwargs) in your function signature are candidates for tuning. If your launch call passes an int, boolean, list or dict to any of these, then that parameter is tuned; the others are passed through to your function unchanged. Images, e.g., can't be tuned - so np.ndarray arguments are passed through to your function unchanged. Tuples of 3 ints also work, and are interpreted in a special way.
+Positional and keyword parameters (not varargs, or varkwargs) in your function signature are candidates for tuning. If your launch call passes an int, boolean, list or dict to any of these, then that parameter is tuned; the others are passed through to your function unchanged (I.E. they are automatically "pinned"). Images, e.g., can't be tuned - so np.ndarray arguments are passed through to your function unchanged. Tuples of 3 ints also work, and are interpreted in a special way.
 <p>
 
-If you want to skip tuning some parameters in your <code>target</code>'s signature, set default values for them, and drop them from your launch call. A param is not tuned, if an arg is not passed to it from your launch call.
-
+If you want to skip tuning (aka "pin") some parameters in your <code>target</code>'s signature, you have the following options, choose what works best for your workflow:
+<li>Set a default value for the parameter you want to pin and drop the argument from your launch call. A param is not tuned, if an arg is not passed to it from your launch call. </li>
+<li>When the argument passed to the target function is of a type that Tuner does not hendle, the value is passed to target unchanged (pinned).</li>
+<br>
 It's the <i>type of the argument</i> passed in your launch call that drives Tuner behavior, not the annotation on the parameters.
 
 ```{language=python}
@@ -277,12 +279,12 @@ A carousel is a group of images that you want tuner to deal with as a set. You t
 </ul>
 <li>Controlling aspects of <a href='#gridsearch'><code>tuner.grid_search()</code></a>. Please see the docstrings for more information. </li>
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
+<li>You get to create tuners by spec'ing them in json.</li>
 <li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
 
-Apart from the few differences above, <code>TunerUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. You do have access to a few additional bells and whistles with the latter, and the docstrings should provide more detail.
+Apart from the few differences above, <code>TunerUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. If none of the above are dealbreakers for you, stick with the decorator.
 
-The accompanying <code>example.py</code> illustrates some uses. Play around, and let me know if you think of ways to improve this.
 </p>
 
 ### OpenCV GUI
@@ -293,6 +295,8 @@ If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contr
 If you don't see the overlay menu, you are missing <code>Qt backend</code>
 
 ### Important Safety Tips
+The accompanying <code>example.py</code> illustrates some uses. Refer to the docstrings for TunerUI's interface for details. Play around, and let me know if you think of ways to improve this.
+
 I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but caveat emptor...
 
 Arguments curried into your functions follow usual call semantics, so modifying those args will have the usual side effects. Accessing tuner.image always gives you a fresh copy of the image - but this is the exception.

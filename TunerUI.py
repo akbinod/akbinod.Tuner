@@ -1,3 +1,5 @@
+from distutils import core
+import string
 from core.Carousel import Carousel
 import numpy as np
 import cv2
@@ -7,6 +9,7 @@ from core.Tuner import Tuner
 from core.Params import Params
 from core.Carousel import *
 from constants import *
+# import core.TunerUtils as tu
 
 class TunerUI:
     def __init__(self, func_main, *
@@ -16,8 +19,10 @@ class TunerUI:
         '''
         Tuning interface for users.
         Please see the readme for detail.
+        Args:
         func_main:  Required. The main target of tuning.
         func_downstream: Optional. Similar to func, this is a downstream function to be called after func.
+        pinned_params: Params that tuner should pass in to the tuned function as is, without creating controls to manipulate them.
         '''
         # Initialize some safe defaults here
         self.ctx = None
@@ -360,8 +365,89 @@ class TunerUI:
     def get_sample_image_bw():
         return cv2.imread(TunerConfig.img_sample_bw)
 
+    @staticmethod
+    def tuner_from_json(cb_main, cb_downstream, json_def:dict):
+        '''
+        Supports the creationg of a Tuner from json. Trackers can
+        be of type int, bool, and list.
+        Args:
+        cb_main: function to tune - required
+        cb_downstream: downstream function - optional
+        json_def: your definition of the tuner - required. See below for an example
+        Example
+        json_def={
+            "img_mode":{
+                "type":"list"
+                ,"data_list":["grayscale","blue","green","red"]
+                ,"default":"grayscale"
+                //this bit below is optional since the lists are the same
+                ,"display_list":["grayscale","blue","green","red"]
+                ,"return_index":False
+                }
+            ,"blur":{
+                "type":"boolean"
+                ,"default":True
+                }
+            ,"blur_ksize":{
+                "type":"list"
+                ,"data_list":[(3,3), (5,5), (7,7)]
+                ,"default":0
+                }
+            ,"blur_sigmaX":{
+                "max":20
+                ,"min":1
+                ,"default":4
+                }
+            ,"contrast":{
+                "type":"boolean"
+                ,"default":False
+                }
+            }
+        '''
+        if json_def is None:
+            return None
+        keys = list(json_def.keys())
 
+        # get the pinned ones
+        pinned_params = {}
+        for key in keys:
+            this = json_def[key]
+            if "pinned" in this:
+                pinned_params[key] = this["pinned"]
 
+        # create the tuner
+        tuner = TunerUI(cb_main,func_downstream= cb_downstream,pinned_params=pinned_params)
+
+        # populate the tracked params
+        for key in keys:
+            # each is a new trackbar
+            this = json_def[key]
+            if not "pinned" in this:
+            # only deal with defs that are not "pinned"
+                # what type
+                this_type = this["type"] if "type" in this else "int"
+                # starting value
+                default = this["default"] if "default" in this else None
+
+                if this_type is None or this_type == "int":
+                    min = this["min"] if "min" in this else 0
+                    # just a random 11 point tracker
+                    max = this["max"] if "max" in this else 10
+                    tuner.track(key, max, min, default)
+                elif this_type in ["bool", "boolean"]:
+                    tuner.track_boolean(key,default)
+                elif this_type == "list":
+                    data_list = this["data_list"] if "data_list" in this else None
+                    display_list = this["display_list"] if "display_list" in this else None
+                    return_index = this["return_index"] if "return_index" in this else True
+                    tuner.track_list(key,data_list,default_item=default,display_list=display_list,return_index=return_index)
+                elif this_type == "dict":
+                    dict_like = this["dict_like"] if "dict_like" in this else None
+                    default_item_key = this["default_item_key"] if "default_item_key" in this else None
+                    return_key = this["return_key"] if "return_key" in this else True
+                    tuner.track_dict(key,dict_like=dict_like,default_item_key=default_item_key,return_key=return_key)
+
+        return tuner
 
 
 

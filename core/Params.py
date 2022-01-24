@@ -354,24 +354,27 @@ class Params():
     def resolved_args(self) -> dict:
         '''
         Prepares a kwargs object for use in target invocation.
-        The returned dict contains all positional and kwonly args
-        with tracked values (matched by name), or with defaults
-        set by user code. If the user has not set up a default,
-        then that parameter has None as its argument.
+        The returned dict contains:
+            1. all positional and kwonly args with tracked values (matched by name)
+            2. default values for all params not in 1 above. Uses default values set up in user code, defaulting to None.
+            3. 1, 2 above are updated with pinned param values
 
         This does not handle (*args, **kwargs)
         '''
         kewargs = {}
-        theta = self.theta
+
         # build the kwargs for the target function
         # push parameters for which we have tuned args
-        keys_has = [arg for arg in self.target_params if arg in theta]
-        kwargs = {arg:theta[arg] for arg in keys_has}
+        keys_has = [arg for arg in self.target_params if arg in self.theta]
+        kwargs = {arg:self.theta[arg] for arg in keys_has}
 
         # get a default if we don't have a tuned arg
-        keys_def = [arg for arg in self.target_params if (arg not in theta and arg in self.target_defaults)]
+        keys_def = [arg for arg in self.target_params if (arg not in self.theta and arg in self.target_defaults)]
         # if we have images, send copies of those images
         kwargs.update({arg:self.target_defaults[arg] for arg in keys_def})
+        # if we have pinned parameters, this is where we add them
+        # if a "pinned_param" is not part of the signature, ignore it
+        kwargs.update({arg:self.pinned_params[arg] for arg in self.pinned_params if arg in keys_def})
 
         return kwargs
 

@@ -2,9 +2,10 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import copy
-
-
-from TunerUI import TunerUI
+import sys
+# # at runtime, get python to look in the root folder
+# sys.path.append("..")
+# from TunerUI import TunerUI
 
 def stitch_images(img_list):
     if len(img_list) == 0: return
@@ -34,37 +35,21 @@ def stitch_images(img_list):
                         )
 
     return ret
+def bin_these(iterable_1d,wt="Bin These"):
+    plt.hist(iterable_1d,bins='auto',)
+    plt.title(wt +  ":auto binned")
+    plt.show()
+    hist = bins = mid = None
+    try:
+        hist, bins = np.histogram(a=iterable_1d)
+        # print(hist,bins)
+        mid = bins[np.argmax(hist)]
+    except:
+        # not all data is amenable to this
+        pass
+    return hist,bins,mid
 
-def tuner_from_json(cb_main, cb_downstream, json_def:dict):
-    '''
-    Returns an instance of Tuner configured to the json you pass in.
-    '''
-    tuner = TunerUI(cb_main,cb_downstream)
-    keys = list(json_def.keys())
-    for key in keys:
-        # each is a new trackbar
-        this = json_def[key]
-        # what type
-        this_type = this["type"] if "type" in this else None
-        # starting value
-        default = this["default"] if "default" in this else None
-
-        if this_type is None:
-            min = this["min"] if "min" in this else None
-            max = this["max"] if "max" in this else None
-            tuner.track(key, max, min, default)
-        elif this_type in ["bool", "boolean"]:
-            tuner.track_boolean(key,default)
-        elif this_type == "list":
-            data_list = display_list = None
-            if "data_list" in this: data_list = this["data_list"]
-            if "display_list" in this: display_list = this["display_list"]
-            tuner.track_list(key,data_list,default,display_list=display_list)
-        # elif this_type == "json":
-        #     TOO RECURSIVE
-
-    return tuner
-
+# this needs to move to TunerUI
 def minimal_preprocessor( cb_downstream = None, thumbnail=None):
     '''
     Tuning the pre-processing is a common task in CV. Use this method to
@@ -155,17 +140,5 @@ def minimal_preprocessor( cb_downstream = None, thumbnail=None):
 
     return tuner
 
-def bin_these(iterable_1d,wt="Bin These"):
-    plt.hist(iterable_1d,bins='auto',)
-    plt.title(wt +  ":auto binned")
-    plt.show()
-    hist = bins = mid = None
-    try:
-        hist, bins = np.histogram(a=iterable_1d)
-        # print(hist,bins)
-        mid = bins[np.argmax(hist)]
-    except:
-        # not all data is amenable to this
-        pass
-    return hist,bins,mid
+
 
