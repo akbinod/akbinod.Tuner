@@ -48,7 +48,7 @@ class TunerUI:
         '''
         # build the menuing system
         function_keys ={118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
-        key_map = "F1: grid srch F2:save img F3:save args | Tag & Save ["
+        key_map = "Esc: exit Enter: next img F1: grid srch F2:save img F3:save args | Tag & Save ["
         for k in self.config.tag_codes:
             fk = function_keys[k]
             name = Tags(k).name
@@ -152,13 +152,17 @@ class TunerUI:
             # Wait forever (when delay == 0) for a keypress
             # This is skipped when in headless mode.
             k = cv2.waitKey(self.delay) #& 0xFF
-            # need to figure out how to reset cc
-            # before opening this back up
-            # if k == 122:
-            #     # F1 pressed
-            #     self.grid_search(None)
+            # if k == 13:
+            #     # advance the carousel
+            #     # self.ctx.
             #     continue
-            if k == 120:
+            # el
+            if k == 122:
+                # need to figure out how to reset cc
+                # F1 pressed
+                self.grid_search(esc_cancels_carousel=True)
+                continue
+            elif k == 120:
                 # F2 pressed = save image
                 self.ctx.save_image()
                 # don't exit just yet - clock starts over
@@ -248,11 +252,11 @@ class TunerUI:
 
         return
 
-
     def null_carousel(self):
         # here just to support TunedFunction
         c = Carousel(self.ctx,None,None)
         return c
+
     def carousel_from_images(self, params:list, images:list, im_read_flag=None, normalize=False):
         '''
         Builds a carousel from the supplied parameters.
@@ -262,6 +266,7 @@ class TunerUI:
         normalize: Whether to normalize the image on read. Match this to your test cases.
         '''
         return Carousel.from_images(self.ctx, params,images,im_read_flag,normalize)
+
     def carousel_from_video(self, params:list, video, gs:FrameGenStyle):
         '''
         Builds a carousel from the supplied parameters.

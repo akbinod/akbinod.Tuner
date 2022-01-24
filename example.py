@@ -280,12 +280,12 @@ if __name__ == "__main__":
     TunerConfig.output_dir = "./wip"
 
     # simplest example of TunedFunction() from the readme
-    # demo_find_circle()
+    demo_find_circle()
     # demo_decorator_2()
 
     # demo of explicit instantiation: begin() and grid_search()
     # demo_instantiation()
     # demo_instantiation_2()
     # demo_grid_search()
-    demo_tuner_from_json()
+    # demo_tuner_from_json()
     pass
