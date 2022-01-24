@@ -25,7 +25,7 @@ class Carousel():
         self.frame_gen = None
         # we seem to need a redundant next to get the ball rolling
         if not frame_gen is None: self.frame_gen = next(frame_gen)
-
+        # bp 1/23 - the above will never be executed?
         return
 
     def __enter__(self):

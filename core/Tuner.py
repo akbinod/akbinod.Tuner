@@ -208,6 +208,7 @@ class Tuner:
         finally:
             # last thing
             self.after_invoke()
+            # bp - infinite loop? - jan 23
             ret = self.ui.on_await_user()
 
         return ret
@@ -523,9 +524,11 @@ class Tuner:
 
     def begin(self,carousel):
         self.headless = False
+
         with carousel:
             for self.frame in carousel:
                 ret  = self.invoke()
+                # break out of the carousel when Esc is pressed
                 if not ret: break
         return ret
 
