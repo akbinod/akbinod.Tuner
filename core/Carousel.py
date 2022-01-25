@@ -25,18 +25,19 @@ class Carousel():
         self.frame_gen = None
         # we seem to need a redundant next to get the ball rolling
         if not frame_gen is None: self.frame_gen = next(frame_gen)
-        # bp 1/23 - the above will never be executed?
+
+
         return
 
-    def __enter__(self):
-        # self.reset()
-        self.tuner.on_enter_carousel(self)
-        # weird way of doing it, but OK
-        return self
+    # def __enter__(self):
+    #     # self.reset()
+    #     self.tuner.on_enter_carousel(self)
+    #     # weird way of doing it, but OK
+    #     return self
 
-    def __exit__(self, *args):
-        # self.reset()
-        self.tuner.on_exit_carousel(self)
+    # def __exit__(self, *args):
+    #     # self.reset()
+    #     self.tuner.on_exit_carousel(self)
 
     def __iter__(self):
 
@@ -44,7 +45,8 @@ class Carousel():
 
     def __next__(self)->Frame:
         '''
-        Generator. Iterate over the user supplied carousel.
+        Generator. Iterate over the user supplied carousel. Returns
+        None instead of throwing StopIteration.
         '''
         # The frame generator will throw StopIteration, we
         # do not have to worry about doing that.
@@ -55,21 +57,32 @@ class Carousel():
             # - so yield this once.
             # No image title - let the tuner default to what it will
             self.frame = Frame()
-            self.tuner.begin_carousel_advance(self.frame)
+            self.tuner.on_begin_carousel_advance(self.frame)
             return self.frame
         else:
-            self.frame = next(self.frame_gen)
-            # Map generated images to the param list
-            # filling the params from left to right
-            # If there are more images than params, ignore them
-            # If there are fewer images than there are params, ignore params
-            self.frame.params = {
-                            self.params[i]:img
-                            for i, img in enumerate(self.frame.images)
-                            if i < len(self.params)
-                            }
+            try:
+                next_frame = next(self.frame_gen)
 
-            self.tuner.begin_carousel_advance(self.frame)
+                # if that did not error out...
+                # we always want to have a self.frame
+                # - stay stuck at the last one when the
+                # generator is exhausted.
+                self.frame = next_frame
+
+                # Map generated images to the param list
+                # filling the params from left to right
+                # If there are more images than params, ignore them
+                # If there are fewer images than there are params, ignore params
+                self.frame.params = {
+                                self.params[i]:img
+                                for i, img in enumerate(self.frame.images)
+                                if i < len(self.params)
+                                }
+
+                self.tuner.on_begin_carousel_advance(self.frame)
+            except StopIteration:
+                pass
+
             return self.frame
 
     # def reset(self):

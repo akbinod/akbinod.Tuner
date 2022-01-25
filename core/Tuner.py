@@ -64,9 +64,9 @@ class Tuner:
     def null_route(*args, **kwargs):
         # this should be good enough to be a function sink
         return
-    def on_enter_carousel(self,carousel):
+    def on_enter_carousel(self,carousel,headless):
         self.carousel = carousel
-        self.frame = None
+        self.headless = headless
 
         # How many invocations on the current carousel
         self.invocation_counter = 0
@@ -82,10 +82,11 @@ class Tuner:
         self.t1 = time.time()
         self.proc_time1 = time.process_time()
 
-
+        # set up the first frame
+        self.advance_frame()
         return
 
-    def on_exit_carousel(self, carousel):
+    def on_exit_carousel(self):
         try:
             # figure duration
             proc_time2 = time.process_time()
@@ -110,8 +111,7 @@ class Tuner:
             self.carousel = None
         return
 
-
-    def begin_carousel_advance(self,new_frame):
+    def on_begin_carousel_advance(self,new_frame):
         # event - before showing an image
         '''
         OK! The analogy to my trusty Kodachrome projector is now thoroughly tortured.
@@ -119,7 +119,7 @@ class Tuner:
         # This call sets up the image parameter(s) for
         # the next set of invocations.
         self._params.update_defaults(new_frame.params)
-        self.ui.on_context_changed(new_frame)
+        self.ui.on_frame_changed(new_frame)
         return
 
     def get_func_name(self, cb):
@@ -208,8 +208,6 @@ class Tuner:
         finally:
             # last thing
             self.after_invoke()
-            # bp - infinite loop? - jan 23
-            ret = self.ui.on_await_user()
 
         return ret
 
@@ -389,6 +387,7 @@ class Tuner:
             val = self.__insert_thumbnail(val, self.frame.tn_down)
             self.frame.user_image_down = val
             self.ui.on_show_downstream(val)
+
     def capture_error(self, func_name):
         self.invocation.errored = True
         # format the error string and the call stack
@@ -405,8 +404,10 @@ class Tuner:
 
         # finally, set the gui status display
         self.ui.on_status_changed(f"Error executing {func_name}: {error}")
+
     def force_save(self):
         self.invocation.force_save = True
+
     def get_temp_file(self, suffix=".png"):
         '''
         Creates a temporary file with the specified suffix.
@@ -522,15 +523,20 @@ class Tuner:
                 mn[x:x1,y:y1] = tn if tn_dim == 2 else cv2.cvtColor(tn,cv2.COLOR_BGR2GRAY)
         return mn
 
-    def begin(self,carousel):
-        self.headless = False
-
-        with carousel:
-            for self.frame in carousel:
-                ret  = self.invoke()
-                # break out of the carousel when Esc is pressed
-                if not ret: break
-        return ret
+    def advance_frame(self):
+        '''
+        Advances a frame and invokes.
+        '''
+        self.frame = next(self.carousel)
+        if not self.frame is None:
+            self.invoke()
+        # with carousel:
+        #     for self.frame in carousel:
+        #         ret  = self.invoke()
+        #         # break out of the carousel when Esc is pressed
+        #         if not ret: break
+        # return ret
+        return self.frame
 
     def grid_search(self, carousel, headless, esc_cancels_carousel = False, subset=None):
         self.headless = headless

@@ -372,9 +372,11 @@ class Params():
         keys_def = [arg for arg in self.target_params if (arg not in self.theta and arg in self.target_defaults)]
         # if we have images, send copies of those images
         kwargs.update({arg:self.target_defaults[arg] for arg in keys_def})
-        # if we have pinned parameters, this is where we add them
-        # if a "pinned_param" is not part of the signature, ignore it
-        kwargs.update({arg:self.pinned_params[arg] for arg in self.pinned_params if arg in keys_def})
+
+        if not self.pinned_params is None:
+            # if we have pinned parameters, this is where we add them
+            # if a "pinned_param" is not part of the signature, ignore it
+            kwargs.update({arg:self.pinned_params[arg] for arg in self.pinned_params if arg in keys_def})
 
         return kwargs
 

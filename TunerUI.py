@@ -133,7 +133,7 @@ class TunerUI:
 
     def on_show_results(self, res):
         if not self.headless:
-            # TBD
+            # TBD - no great way to show results in a purely cv2 UX
             pass
         return
 
@@ -141,26 +141,24 @@ class TunerUI:
         '''
         Show results and wait for user input for next action. This is
         a GUI callback expected by the TuningContext
-        delay:      in ms - 0 means  - *indefinite*
-
         '''
-        # can only "show" in the context of some carousel
+        # can only "show" in the context of some tuner
         if self.ctx is None: return True
-        cancel = False
 
+        # And now we wait
         while(not self.headless):
-            # Wait forever (when delay == 0) for a keypress
+            # Wait forever (when delay == 0)
+            # for a keypress.
             # This is skipped when in headless mode.
             k = cv2.waitKey(self.delay) #& 0xFF
-            # if k == 13:
-            #     # advance the carousel
-            #     # self.ctx.
-            #     continue
-            # el
+
             if k == 122:
                 # need to figure out how to reset cc
                 # F1 pressed
                 self.grid_search(esc_cancels_carousel=True)
+                # done with the search, continue to wait for esc
+                # or next or whatever the user wants to do next
+
                 continue
             elif k == 120:
                 # F2 pressed = save image
@@ -176,14 +174,19 @@ class TunerUI:
                 # tag the current result - stays in here
                 self.ctx.tag(k)
                 continue
-            else:
-                # any other key - done with this image
+            elif k == 27:
                 # cancel the stack if the Esc key was pressed
-                cancel = (k==27)
-                break
-        return not cancel
+                return False
+            else:
+                # Any other key including spacebar,
+                # enter etc. Done with this image.
+                # advance the carousel and invoke
+                self.ctx.advance_frame()
+                continue
 
-    def on_context_changed(self, new_frame):
+        return True
+
+    def on_frame_changed(self, new_frame):
         if self.ctx is None: return
         self.frame = new_frame
         title = f"{self.window}: {new_frame.title} [{new_frame.index} of {new_frame.tray_length}]"
@@ -215,11 +218,17 @@ class TunerUI:
                             -- out of the entire carousel as well (True)
         '''
         self.headless = headless
+        old_delay = self.delay
         self.delay = delay
-        # here in support of TunedFunction
-        if carousel is None: carousel = self.null_carousel()
-        if not type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
-        return self.ctx.grid_search(carousel,headless,esc_cancels_carousel)
+        try:
+            # here in support of TunedFunction
+            if carousel is None: carousel = self.null_carousel()
+            if not type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
+            ret = self.ctx.grid_search(carousel,headless,esc_cancels_carousel)
+        finally:
+            self.delay = old_delay
+
+        return ret
 
     def begin(self, carousel=None, delay=0):
         '''
@@ -227,15 +236,20 @@ class TunerUI:
         carousel: A fully initialize Carousel, use the carousel_from_() helper functions to gin one up. See readme for more information.
         delay:    Milliseconds to show each image in the carousel until interrupted by the keyboard. 0 for indefinite.
         '''
-        self.headless = False
-        self.delay = delay
-        # here in support of TunedFunction
-        if carousel is None: carousel = self.null_carousel()
-        if not  type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
-        ret = self.ctx.begin(carousel)
-        # should we just leave this hanging around? Or unload?
-
-        return ret
+        try:
+            self.headless = False
+            self.delay = delay
+            # here in support of TunedFunction
+            if carousel is None: carousel = self.null_carousel()
+            if not  type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
+            # enter the carousel
+            self.ctx.on_enter_carousel(carousel, self.headless)
+            # turn over control to the message pump
+            self.on_await_user()
+            # when we're back, it's time to leave
+        finally:
+            self.ctx.on_exit_carousel()
+        return
 
     def build_from_call(self, call_is_method:bool, param_kwargs, call_args, call_kwargs):
         '''
