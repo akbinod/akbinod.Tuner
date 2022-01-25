@@ -81,7 +81,7 @@ class Carousel():
 
                 self.tuner.on_begin_carousel_advance(self.frame)
             except StopIteration:
-                pass
+                self.tuner.on_status_changed("End of carousel.")
 
             return self.frame
 

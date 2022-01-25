@@ -527,9 +527,10 @@ class Tuner:
         '''
         Advances a frame and invokes.
         '''
-        self.frame = next(self.carousel)
-        if not self.frame is None:
-            self.invoke()
+        if not self.carousel is None:
+            self.frame = next(self.carousel)
+            if not self.frame is None:
+                self.invoke()
         # with carousel:
         #     for self.frame in carousel:
         #         ret  = self.invoke()
@@ -580,5 +581,10 @@ class Tuner:
             x1 += x
         return x, x1, y, y1
 
+    def on_status_changed(self, val):
+        '''
+        Passthrough for downstream objects to set status
+        '''
+        return self.ui.on_status_changed(val)
 
 
