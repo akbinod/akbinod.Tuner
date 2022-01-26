@@ -64,7 +64,11 @@ class Tuner:
     def null_route(*args, **kwargs):
         # this should be good enough to be a function sink
         return
-    def on_enter_carousel(self,carousel,headless):
+    def enter_carousel(self,carousel,headless):
+        # validate the carousel sent in
+        if not carousel is None and not type(carousel) is Carousel:
+            raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
+
         self.carousel = carousel
         self.headless = headless
 
@@ -86,7 +90,7 @@ class Tuner:
         self.advance_frame()
         return
 
-    def on_exit_carousel(self):
+    def exit_carousel(self):
         try:
             # figure duration
             proc_time2 = time.process_time()
@@ -134,7 +138,8 @@ class Tuner:
 
     def invoke(self):
         '''
-        This is where the target function is invoked.
+        Invoke the target and downstream functions. That should
+        updated the display, but that depends on target and/or downstream.
         The function may take parameters. Of these, we can handle
         the positional and kwonly parameters. When we have matching
         names in theta and parameters to the function, we can pass
@@ -531,38 +536,34 @@ class Tuner:
             self.frame = next(self.carousel)
             if not self.frame is None:
                 self.invoke()
-        # with carousel:
-        #     for self.frame in carousel:
-        #         ret  = self.invoke()
-        #         # break out of the carousel when Esc is pressed
-        #         if not ret: break
-        # return ret
+
         return self.frame
 
-    def grid_search(self, carousel, headless, esc_cancels_carousel = False, subset=None):
-        self.headless = headless
+    def grid_search(self, subset=None):
+
         # the ranges that our trackbars have
         ranges = self._params.get_ranges(subset)
-        with carousel:
-            for self.frame in carousel:
-                # Bang on this image.
-                user_cancelled = False
-                # cart(esian) iterates over the complete set of values that this constellation of trackbars could have.
-                # It needs to be rebuilt for each file, as an iteration will exhaust it.
-                cart = it.product(*ranges.values())
-                for theta in cart:
-                    # work on this theta, we're only getting the
-                    # keys out of the ranges dict
-                    args = {k:theta[i] for i,k in enumerate(ranges)}
-                    # Update the trackbar values.
-                    self._params.theta = args
-                    # Invoke target
-                    user_cancelled = not self.invoke()
-                    if user_cancelled : break #out of this image
-                # done with the last image
-                if user_cancelled and esc_cancels_carousel: break
 
-        return not user_cancelled
+        # Bang on this image.
+        ui_ret = False
+        # cart(esian) iterates over the complete set of
+        # values that this constellation of trackbars could have.
+        # It needs to be rebuilt for each image, as an iteration will exhaust it.
+        cart = it.product(*ranges.values())
+        for theta in cart:
+            # work on this theta, we're only getting the
+            # keys out of the ranges dict
+            args = {k:theta[i] for i,k in enumerate(ranges)}
+            # Update the trackbar values.
+            self._params.theta = args
+            # Invoke target
+            self.invoke()
+            # wait for user input after each iteration
+            ui_ret = self.ui.on_await_user()
+            # stop iterating this cart if the user cancels out
+            if ui_ret == False: break
+
+        return ui_ret
 
     def image_to_array_indices(self, img_pt_from, *
                                 , img_pt_to = None
@@ -587,4 +588,8 @@ class Tuner:
         '''
         return self.ui.on_status_changed(val)
 
+    def null_carousel(self):
+        # here just to support TunedFunction
+        c = Carousel(self,None,None)
+        return c
 

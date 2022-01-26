@@ -3,6 +3,7 @@ import string
 from core.Carousel import Carousel
 import numpy as np
 import cv2
+import sys
 
 from TunerConfig import TunerConfig
 from core.Tuner import Tuner
@@ -27,6 +28,7 @@ class TunerUI:
         # Initialize some safe defaults here
         self.ctx = None
         self.headless = False
+        self.in_grid_search = False
 
         # set up config
         self.config = TunerConfig()
@@ -117,6 +119,9 @@ class TunerUI:
 
     def on_status_changed(self, val):
         try:
+            if val is Exception:
+                val = f"{sys.exc_info()[1]}"
+
             cv2.displayStatusBar(self.ctx.func_name,val,60_000)
         except:
             pass
@@ -153,12 +158,17 @@ class TunerUI:
             k = cv2.waitKey(self.delay) #& 0xFF
 
             if k == 122:
-                # need to figure out how to reset cc
                 # F1 pressed
-                self.grid_search(esc_cancels_carousel=True)
-                # done with the search, continue to wait for esc
-                # or next or whatever the user wants to do next
+                if self.in_grid_search:
+                    # Cannot start a grid search while
+                    # another one is one. Just continue waiting
+                    pass
+                else:
+                    self.__grid_search()
+                    # done with the search,
 
+                # continue to wait for esc
+                # or next or whatever the user wants to do next
                 continue
             elif k == 120:
                 # F2 pressed = save image
@@ -179,9 +189,16 @@ class TunerUI:
                 return False
             else:
                 # Any other key including spacebar,
-                # enter etc. Done with this image.
-                # advance the carousel and invoke
-                self.ctx.advance_frame()
+                # enter etc. Or the wait time elapsed.
+                if self.in_grid_search:
+                    # done with a set of params
+                    # just return so the next set
+                    # can be presented
+                    return True
+                else:
+                    # Done with this image.
+                    # advance the carousel and invoke
+                    self.ctx.advance_frame()
                 continue
 
         return True
@@ -204,9 +221,18 @@ class TunerUI:
         # invoke() the tuner
         self.ctx.invoke()
         return
-
-    def grid_search(self, carousel=None, headless=False,delay=500, esc_cancels_carousel = False):
+    def __grid_search(self):
+        # only called internally
+        try:
+            self.in_grid_search = True
+            ret = self.ctx.grid_search()
+        finally:
+            self.in_grid_search = False
+            self.on_status_changed("Grid search complete.")
+        return
+    def grid_search(self, carousel, headless=False,delay=500):
         '''
+        This should only be called from userland code.
         Conducts a grid search across the trackbar configuration, and saves
         aggregated results to file. When not in headless mode, you can
         save images and results for individual files as they are displayed.
@@ -218,17 +244,17 @@ class TunerUI:
                             -- out of the entire carousel as well (True)
         '''
         self.headless = headless
-        old_delay = self.delay
+        # old_delay = self.delay
         self.delay = delay
         try:
-            # here in support of TunedFunction
-            if carousel is None: carousel = self.null_carousel()
-            if not type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
-            ret = self.ctx.grid_search(carousel,headless,esc_cancels_carousel)
+            # enter the carousel
+            self.ctx.enter_carousel(carousel, self.headless)
+            self.__grid_search()
+            self.on_await_user()
         finally:
-            self.delay = old_delay
-
-        return ret
+            # self.delay = old_delay
+            pass
+        return
 
     def begin(self, carousel=None, delay=0):
         '''
@@ -239,16 +265,15 @@ class TunerUI:
         try:
             self.headless = False
             self.delay = delay
-            # here in support of TunedFunction
-            if carousel is None: carousel = self.null_carousel()
-            if not  type(carousel) is Carousel: raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
             # enter the carousel
-            self.ctx.on_enter_carousel(carousel, self.headless)
+            self.ctx.enter_carousel(carousel, self.headless)
             # turn over control to the message pump
             self.on_await_user()
             # when we're back, it's time to leave
+        except Exception as e:
+            self.on_status_changed(e)
         finally:
-            self.ctx.on_exit_carousel()
+            self.ctx.exit_carousel()
         return
 
     def build_from_call(self, call_is_method:bool, param_kwargs, call_args, call_kwargs):
@@ -266,10 +291,6 @@ class TunerUI:
 
         return
 
-    def null_carousel(self):
-        # here just to support TunedFunction
-        c = Carousel(self.ctx,None,None)
-        return c
 
     def carousel_from_images(self, params:list, images:list, im_read_flag=None, normalize=False):
         '''

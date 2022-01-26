@@ -285,7 +285,7 @@ if __name__ == "__main__":
 
     # demo of explicit instantiation: begin() and grid_search()
     # demo_instantiation()
-    demo_instantiation_2()
-    # demo_grid_search()
+    # demo_instantiation_2()
+    demo_grid_search()
     # demo_tuner_from_json()
     pass
