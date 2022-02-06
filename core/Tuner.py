@@ -21,6 +21,7 @@ from core.PropertyBag import PropertyBag
 from core.Carousel import Carousel
 from constants import *
 from core.Frame import Frame
+from core.CodeTimer import CodeTimer
 
 class Tuner:
     def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
@@ -189,6 +190,7 @@ class Tuner:
             return
 
         ret = True
+        ct = CodeTimer(self.func_main)
         try:
 
             # now let the context grab what it may
@@ -196,7 +198,10 @@ class Tuner:
 
             # call the user proc that does the calc/tuning
             self.__calling_main = True
-            safe_invoke(self.func_main)
+
+
+            with ct:
+                safe_invoke(self.func_main)
 
             #  call the user proc that does the secondary processing/application
             self.__calling_main = False
@@ -208,12 +213,12 @@ class Tuner:
             # `image` and `result` properties from
             # within the target function.
 
-        except:
+        except Exception as e:
             pass
         finally:
             # last thing
-            self.after_invoke()
-
+            self.after_invoke(ct)
+            self.on_status_changed(str(ct))
         return ret
 
     def set_result(self, res, *, is_return:bool=False):
@@ -345,12 +350,12 @@ class Tuner:
 
         return
 
-    def after_invoke(self):
+    def after_invoke(self, ct:CodeTimer = None):
         # important safety tip - do not clear out the last invocation record
         # results from tuner will be grabbed if we need to save them
         # for saving later
         self.invocation_counter += 1
-
+        if not ct is None: self.invocation.inv_time = str(ct)
         return
 
     def tag(self, obs:Tags):
