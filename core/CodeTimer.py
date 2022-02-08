@@ -24,11 +24,11 @@ class CodeTimer:
 
         return
     def __str__(self) -> str:
-        outp = f"""{self.func_name} processed in {time.strftime('%H:%M:%S', self.elapsed_time )}"""
-        if self.elapsed_time.tm_sec <= 1 or self.elapsed_proc_time < 1:
-            #if the number of seconds resolves to 1 or 0, twekas will
-            #result in changes noticable only in process_time deltas
-            #also, stop obsessing past the 5th decimal place
-            outp += f"""\t[sub second process_time: {round(self.elapsed_proc_time,self.precision)}]"""
+        outp = f"""{self.func_name} processed in {time.strftime('%H:%M:%S', self.elapsed_time )}, process_time: {round(self.elapsed_proc_time,self.precision)}"""
+        # if self.elapsed_time.tm_sec <= 1 or self.elapsed_proc_time < 1:
+        #     #if the number of seconds resolves to 1 or 0, twekas will
+        #     #result in changes noticable only in process_time deltas
+        #     #also, stop obsessing past the 5th decimal place
+        #     outp += f"""\t[sub second process_time: {round(self.elapsed_proc_time,self.precision)}]"""
 
         return outp

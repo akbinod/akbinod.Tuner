@@ -190,7 +190,7 @@ class Tuner:
             return
 
         ret = True
-        ct = CodeTimer(self.func_main)
+        ct = CodeTimer(self.func_name)
         try:
 
             # now let the context grab what it may
@@ -218,7 +218,8 @@ class Tuner:
         finally:
             # last thing
             self.after_invoke(ct)
-            self.on_status_changed(str(ct))
+            # show timing if there were no errors - otherwise let the errors show
+            if not self.invocation.errored: self.on_status_changed(str(ct))
         return ret
 
     def set_result(self, res, *, is_return:bool=False):
@@ -311,8 +312,8 @@ class Tuner:
             else:
                 # make a hive for this result
                 hive = self.carousel_data[self.frame.title] = {}
-            # get rid of unseemly attributes
-            del(self.invocation.force_save)
+            # # get rid of unseemly attributes
+            # del(self.invocation.force_save)
             hive[self.arg_hash] = self.invocation
 
         return save
@@ -332,6 +333,7 @@ class Tuner:
         # initialize a complete invocation record
         # with default values here
         self.invocation = PropertyBag()
+        self.invocation.duration = ""
         # flags
         # tags go here - all set to false initially
         self.invocation.update(self._config.default_tag_map)
@@ -355,7 +357,7 @@ class Tuner:
         # results from tuner will be grabbed if we need to save them
         # for saving later
         self.invocation_counter += 1
-        if not ct is None: self.invocation.inv_time = str(ct)
+        if not ct is None: self.invocation.duration = str(ct)
         return
 
     def tag(self, obs:Tags):
@@ -416,7 +418,10 @@ class Tuner:
         self.ui.on_status_changed(f"Error executing {func_name}: {error}")
 
     def force_save(self):
+        # save now
         self.invocation.force_save = True
+        self.save_last_invocation()
+        self.save_carousel()
 
     def get_temp_file(self, suffix=".png"):
         '''
