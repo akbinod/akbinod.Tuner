@@ -41,6 +41,7 @@ class Tuner:
         self.ui = ui
         self._config = config
         self._params = params
+        self.frame = None
 
         # primary function to tune
         if func_main is None:
@@ -302,7 +303,7 @@ class Tuner:
         # or any of the tags got set on this invocation
         save = save or (len([tag for tag in self._config.tag_names if self.invocation[tag] == True]) > 0)
 
-        if save:
+        if save and self.frame:
             # save this invocation
             # in the file hive,
             # keyed by the args hash
