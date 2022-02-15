@@ -71,6 +71,8 @@ class Tuner:
         if not carousel is None and not type(carousel) is Carousel:
             raise ValueError("carousel: Either pass none, or use the carousel_ helper functions to gin one up.")
 
+        # if we have not been given a carousel, set up a null one - to support TunedFunction
+        if carousel is None: carousel = self.null_carousel()
         self.carousel = carousel
         self.headless = headless
 
