@@ -303,16 +303,19 @@ class Tuner:
         # or any of the tags got set on this invocation
         save = save or (len([tag for tag in self._config.tag_names if self.invocation[tag] == True]) > 0)
 
-        if save and self.frame:
+        if save:
             # save this invocation
-            # in the file hive,
             # keyed by the args hash
-            hive = None
-            if self.frame.title in self.carousel_data:
-                hive = self.carousel_data[self.frame.title]
-            else:
-                # make a hive for this result
-                hive = self.carousel_data[self.frame.title] = {}
+
+            # default to the general
+            hive = self.carousel_data
+            if not self.frame is None:
+                # in the file hive
+                if self.frame.title in self.carousel_data:
+                    hive = self.carousel_data[self.frame.title]
+                else:
+                    # make a hive for this result
+                    hive = self.carousel_data[self.frame.title] = {}
             # # get rid of unseemly attributes
             # del(self.invocation.force_save)
             hive[self.arg_hash] = self.invocation
@@ -430,9 +433,12 @@ class Tuner:
         The temp file is prefixed with the name of the main target,
         and image currently being processed
         '''
-        if self.frame is None: return
+
         prefix = self.func_name
-        if self.frame.tray_length <= 1 or suffix.endswith(".png"):
+        # if self.frame is None: return
+        if self.frame is None:
+            it = None
+        elif self.frame.tray_length <= 1 or suffix.endswith(".png"):
             # results for a single file, or it's
             # an image file being saved.
             # Use the file name
