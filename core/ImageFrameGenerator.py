@@ -67,10 +67,10 @@ class ImageFrameGenerator():
     def reverse(self):
         # Makes the previous frame 'up next'
         # yes, - 2
-        self.index = max[-1, self.index -2]
-        return self.index
+        self.index = max([-1, self.index -2])
+        return
 
     def skip(self):
         # causes the next frame to be skipped
-        self.index = min[self.length, self.index+1]
+        self.index = min([self.length, self.index+1])
         return self.index

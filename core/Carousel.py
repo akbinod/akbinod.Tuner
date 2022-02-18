@@ -23,6 +23,8 @@ class Carousel():
         self.params = None if (not params is None and len(params) == 0) else params
         # this could be an image or a video frame generator
         self.frame_gen = None
+        # extremely hacky, but generators do not support a reverse
+        self._frame_reverser = frame_gen
         # we seem to need a redundant next to get the ball rolling
         if not frame_gen is None: self.frame_gen = next(frame_gen)
 
@@ -43,11 +45,7 @@ class Carousel():
 
         return self
 
-    def __next__(self)->Frame:
-        '''
-        Generator. Iterate over the user supplied carousel. Returns
-        None instead of throwing StopIteration.
-        '''
+    def _get_next(self):
         # The frame generator will throw StopIteration, we
         # do not have to worry about doing that.
 
@@ -85,15 +83,21 @@ class Carousel():
 
             return self.frame
 
+    def __next__(self)->Frame:
+        '''
+        Generator. Iterate over the user supplied carousel. Returns
+        None instead of throwing StopIteration.
+        '''
+        return self._get_next()
+
+    def reverse(self):
+        # Makes the previous frame 'up next'
+        if not self.frame_gen is None: self._frame_reverser.reverse()
+        return
+
     # def reset(self):
     #     if not self.frame_gen is None: self.frame_gen.reset()
     #     self.frame_gen = next(self.frame_gen)
-
-    # def reverse(self):
-    #     # Makes the previous frame 'up next'
-    #     if not self.frame_gen is None: self.frame_gen.reverse()
-
-
     # def skip(self):
     #     # causes the next frame to be skipped
     #     if not self.frame_gen is None: self.frame_gen.skip

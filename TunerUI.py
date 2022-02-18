@@ -50,7 +50,7 @@ class TunerUI:
         '''
         # build the menuing system
         function_keys ={118:"F4", 96: "F5", 98:"F7", 100: "F8", 101:"F9", 109:"F10"}
-        key_map = "Esc: exit Enter: next img F1: grid srch F2:save img F3:save args | Tag & Save ["
+        key_map = "Esc: exit Enter: next img Bksp: prev img F1: grid srch F2:save img F3:save args | Tag & Save ["
         for k in self.config.tag_codes:
             fk = function_keys[k]
             name = Tags(k).name
@@ -155,7 +155,7 @@ class TunerUI:
             # Wait forever (when delay == 0)
             # for a keypress.
             # This is skipped when in headless mode.
-            k = cv2.waitKey(self.delay) #& 0xFF
+            k = cv2.waitKeyEx(self.delay) #& 0xFF
 
             if k == 122:
                 # F1 pressed
@@ -197,8 +197,14 @@ class TunerUI:
                     return True
                 else:
                     # Done with this image.
-                    # advance the carousel and invoke
-                    self.ctx.advance_frame()
+                    if k == 8:
+                        self.ctx.regress_frame()
+                    elif k == 13:
+                        # advance the carousel and invoke
+                        self.ctx.advance_frame()
+                    else:
+                        # ignore all other keys
+                        pass
                 continue
 
         return True

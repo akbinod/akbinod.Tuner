@@ -546,6 +546,10 @@ class Tuner:
             else:
                 mn[x:x1,y:y1] = tn if tn_dim == 2 else cv2.cvtColor(tn,cv2.COLOR_BGR2GRAY)
         return mn
+    def regress_frame(self):
+        if not self.carousel is None:
+            self.carousel.reverse()
+        return self.advance_frame()
 
     def advance_frame(self):
         '''
