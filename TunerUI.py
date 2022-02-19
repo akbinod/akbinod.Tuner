@@ -177,7 +177,7 @@ class TunerUI:
                 continue
             elif k == 99:
                 # F3 - force this invocation data to be saved
-                self.ctx.force_save()
+                self.save_invocation()
                 # don't exit just yet - clock starts over
                 continue
             elif k in self.config.tag_codes:
@@ -297,6 +297,8 @@ class TunerUI:
 
         return
 
+    def save_invocation(self):
+        return self.ctx.force_save()
 
     def carousel_from_images(self, params:list, images:list, im_read_flag=None, normalize=False):
         '''

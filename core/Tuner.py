@@ -419,7 +419,8 @@ class Tuner:
         # - not scroll to the bottom for it
         l.reverse()
         self.invocation.error = l
-
+        # do an immediate dump to file
+        self.save_carousel()
         # finally, set the gui status display
         self.ui.on_status_changed(f"Error executing {func_name}: {error}")
 
@@ -472,17 +473,26 @@ class Tuner:
             full_path_name = os.path.realpath(full_path_name)
         return full_path_name
 
+
     def save_carousel(self):
         '''
         Saves the current set of results to a file following name conventions.
         Use capture to add individual results to the set.
         '''
+        def np_encoder(object):
+            '''
+            From: https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
+            conmak's solution - thank you!
+            '''
+            if isinstance(object, np.generic):
+                # (np.generic, np.ndarray) ?
+                return object.item()
         ret = True
 
         fname = self.get_temp_file(suffix=".json")
         try:
             with open(fname,"w") as f:
-                f.write(str(self.carousel_data))
+                f.write(json.dumps(self.carousel_data,indent=4,default=np_encoder,))
                 f.write("\n")
         except:
             # dont let this screw anything else up

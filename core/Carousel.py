@@ -31,15 +31,6 @@ class Carousel():
 
         return
 
-    # def __enter__(self):
-    #     # self.reset()
-    #     self.tuner.on_enter_carousel(self)
-    #     # weird way of doing it, but OK
-    #     return self
-
-    # def __exit__(self, *args):
-    #     # self.reset()
-    #     self.tuner.on_exit_carousel(self)
 
     def __iter__(self):
 
