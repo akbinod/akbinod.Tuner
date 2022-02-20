@@ -25,6 +25,7 @@ class ImageFrameGenerator():
         return self
 
     def __next__ (self):
+
         while self.index < self.length - 1:
             self.index += 1
             frame = Frame()
@@ -55,7 +56,8 @@ class ImageFrameGenerator():
                 frame.images.append(im)
                 # this is a holdover from the old style - last image wins
                 frame.image = im
-
+                # so hacky - trying not to exhaust the generator
+                if self.index >= self.length - 1:self.index = self.length-2
             yield frame
 
         # done iterating our files
