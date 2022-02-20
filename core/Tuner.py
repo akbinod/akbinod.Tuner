@@ -441,9 +441,8 @@ class Tuner:
         # if self.frame is None: return
         if self.frame is None:
             it = None
-        elif self.frame.tray_length <= 1 or suffix.endswith(".png"):
-            # results for a single file, or it's
-            # an image file being saved.
+        elif suffix.endswith(".png") or suffix.endswith(".jpg"):
+            # it's an image file being saved.
             # Use the file name
             it = self.frame.title if self.frame.title != Frame.default_title else None
         else:

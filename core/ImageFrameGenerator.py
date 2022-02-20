@@ -25,9 +25,12 @@ class ImageFrameGenerator():
         return self
 
     def __next__ (self):
-
-        while self.index < self.length - 1:
+        # yes this indexing wrong though it seems, is needed
+        while self.index < self.length:
             self.index += 1
+            # so hacky - trying not to exhaust the generator
+            if self.index >= self.length :self.index = self.length-1
+
             frame = Frame()
             frame.tray_length = self.length
             # our indexing is 0 based
@@ -56,8 +59,7 @@ class ImageFrameGenerator():
                 frame.images.append(im)
                 # this is a holdover from the old style - last image wins
                 frame.image = im
-                # so hacky - trying not to exhaust the generator
-                if self.index >= self.length - 1:self.index = self.length-2
+
             yield frame
 
         # done iterating our files
