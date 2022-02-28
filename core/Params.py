@@ -29,14 +29,23 @@ class prop:
 
 class Params():
     '''
-    In the default implementation that comes with Tuner, the GUI implementation is openCV highGui
-    specific. Extenders should instantiate their own UX controls like lists, checkboxes etc.
-    You could do this by overriding the on_ui_ set of methods within the param classes.
     This class should be left as is.
-    tuner_ui: The main UI class that users interact with. E.g., an instance of TunerUI.
-    '''
-    def __init__(self, tuner_ui, func, pinned_parms) -> None:
 
+    UI extenders should instantiate their own UX controls
+    like lists, checkboxes etc. Do this by implementing
+    the on_control_x set of callbacks in your UI object.
+    Those methods will be called from within the
+    individual param classes to render UI
+
+    '''
+    def __init__(self, tuner_ui, func, pinned_parms, parms_json) -> None:
+        '''
+        Args:
+        tuner_ui: The main UI class that users interact with.
+                E.g., an instance of TunerUI, or ThetaUI.
+        func: the tracked function
+        pinned_parms: params to be passed in to the func unchanged
+        '''
         self.ui = tuner_ui
         self.pinned_params = pinned_parms
         self.tuned_params = {}
@@ -105,7 +114,7 @@ class Params():
         # if self.target_params[0] == "self":
         #     self.target_params.pop(0)
         #     del self.target_defaults["self"]
-
+        if not parms_json is None: self.__build_from_json(parms_json)
         return
 
     def __contains__(self, key):
@@ -141,7 +150,7 @@ class Params():
             ty = type(val)
             if ty == int:
                 # int arg - create a vanilla param
-                self.ui.track(parm, max=val)
+                self.track(parm, max=val)
             elif ty == tuple:
                 # also a vanilla arg, but we got a tuple
                 # describing max, min, default
@@ -149,17 +158,17 @@ class Params():
                 this_max = val[0]
                 if len(val) == 2: this_min = val[1]
                 if len(val) == 3: this_default = val[2]
-                self.ui.track(parm, max=this_max,min=this_min,default=this_default)
+                self.track(parm, max=this_max,min=this_min,default=this_default)
             elif ty == bool:
                 # its a boolean arg
-                self.ui.track_boolean(parm,default=val)
+                self.track_boolean(parm,default=val)
             elif ty == list:
                 # track from a list
                 # nothing fancy here like display_list etc
-                self.ui.track_list(parm,val,return_index=False)
+                self.track_list(parm,val,return_index=False)
             elif ty == dict:
                 # track from a dict/json
-                self.ui.track_dict(parm,val, return_key=False)
+                self.track_dict(parm,val, return_key=False)
             else:
                 # Something we cannot tune, so curry it.
                 # As long as it's not 'self'
@@ -222,6 +231,88 @@ class Params():
         # done defining what to track
 
         return
+
+    def __build_from_json(self, json_def:dict):
+        '''
+        Supports the creation of tracking controls from json.
+        Args:
+        json_def: your definition of the tracked parameters - required.
+        See below for an example
+        Example
+        json_def={
+            "img_mode":{
+                "type":"list"
+                ,"data_list":["grayscale","blue","green","red"]
+                ,"default":"grayscale"
+                //this bit below is optional since the lists are the same
+                ,"display_list":["grayscale","blue","green","red"]
+                ,"return_index":False
+                }
+            ,"blur":{
+                "type":"boolean"
+                ,"default":True
+                }
+            ,"blur_ksize":{
+                "type":"list"
+                ,"data_list":[(3,3), (5,5), (7,7)]
+                ,"default":0
+                }
+            ,"blur_sigmaX":{
+                "max":20
+                ,"min":1
+                ,"default":4
+                }
+            ,"contrast":{
+                "type":"boolean"
+                ,"default":False
+                }
+            }
+        '''
+        if json_def is None: return None
+        # It is assumed that all other trackers are to be dumped out
+        # and we rebuild from this json
+        self.tuned_params = {}
+        self.pinned_params = {}
+        keys = list(json_def.keys())
+
+        # get the pinned ones
+        for key in keys:
+            this = json_def[key]
+            if "pinned" in this:
+                self.pinned_params[key] = this["pinned"]
+
+
+        # populate the tracked params
+        for key in keys:
+            # each is a new trackbar
+            this = json_def[key]
+            if not "pinned" in this:
+            # only deal with defs that are not "pinned"
+                # what type
+                this_type = this["type"] if "type" in this else "int"
+                # starting value
+                default = this["default"] if "default" in this else None
+
+                if this_type is None or this_type == "int":
+                    min = this["min"] if "min" in this else 0
+                    # just a random 11 point tracker
+                    max = this["max"] if "max" in this else 10
+                    self.track(key, max, min, default)
+                elif this_type in ["bool", "boolean"]:
+                    self.track_boolean(key,default)
+                elif this_type == "list":
+                    data_list = this["data_list"] if "data_list" in this else None
+                    display_list = this["display_list"] if "display_list" in this else None
+                    return_index = this["return_index"] if "return_index" in this else True
+                    self.track_list(key,data_list,default_item=default,display_list=display_list,return_index=return_index)
+                elif this_type == "dict":
+                    dict_like = this["dict_like"] if "dict_like" in this else None
+                    default_item_key = this["default_item_key"] if "default_item_key" in this else None
+                    return_key = this["return_key"] if "return_key" in this else True
+                    self.track_dict(key,dict_like=dict_like,default_item_key=default_item_key,return_key=return_key)
+
+
+        return
     def update_defaults(self, args:dict):
         '''
         Called to update the value of default arguments.
@@ -252,7 +343,7 @@ class Params():
         Add an int parameter to be tuned.
         Please see the readme for details.
         '''
-        t = param(self.ui,name,min=min,max=max,default=default, cb_on_update=self.__update_arg)
+        t = param(self.ui,name,min=min,max=max,default=default)
         self.__track_param(name,t)
 
         return
@@ -263,7 +354,7 @@ class Params():
         Please see the readme for details.
         '''
         default = False if default is None else default
-        t = bool_param(self.ui,name,default=default, cb_on_update=self.__update_arg)
+        t = bool_param(self.ui,name,default=default)
         self.__track_param(name,t)
         return
 
@@ -281,7 +372,6 @@ class Params():
                             ,data_list=data_list
                             ,display_list = display_list
                             ,default_item=default_item
-                            ,cb_on_update=self.__update_arg
                             ,return_index=return_index
                             )
         self.__track_param(name,t)
@@ -300,14 +390,9 @@ class Params():
                             ,dict_like=dict_like
                             ,default_item_key=default_item_key
                             ,return_key=return_key
-                            ,cb_on_update=self.__update_arg
                             )
             self.__track_param(name,t)
         return
-
-    def __update_arg(self, key, val):
-        # kick off a refresh of the UI
-        self.ui.on_controls_changed(key,val)
 
     def get_ranges(self, filter:list=None) -> dict:
         '''
@@ -331,7 +416,6 @@ class Params():
         The current set of args to a tuned function.
         '''
         # This looks like a slower way of doing things,
-        # especially given the __update_arg just up above;
         # but it actually avoids a whole lot of refresh
         # during trackbar init which can get really
         # expensive out in userland

@@ -217,12 +217,12 @@ class Tuner:
             # within the target function.
 
         except Exception as e:
-            pass
+            self.ui.on_error_update(e)
         finally:
             # last thing
             self.after_invoke(ct)
             # show timing if there were no errors - otherwise let the errors show
-            if not self.invocation.errored: self.on_status_changed(str(ct))
+            self.ui.on_timing_update(ct)
         return ret
 
     def set_result(self, res, *, is_return:bool=False):
@@ -422,7 +422,7 @@ class Tuner:
         # do an immediate dump to file
         self.save_carousel()
         # finally, set the gui status display
-        self.ui.on_status_changed(f"Error executing {func_name}: {error}")
+        self.ui.on_error_update(l)
 
     def force_save(self):
         # save now
@@ -493,9 +493,9 @@ class Tuner:
             with open(fname,"w") as f:
                 f.write(json.dumps(self.carousel_data,indent=4,default=np_encoder,))
                 f.write("\n")
-        except:
+        except Exception as e:
             # dont let this screw anything else up
-            self.ui.on_status_changed("Failed to write results.")
+            self.ui.on_error_update(e)
             ret = False
 
         return ret
@@ -614,11 +614,6 @@ class Tuner:
             x1 += x
         return x, x1, y, y1
 
-    def on_status_changed(self, val):
-        '''
-        Passthrough for downstream objects to set status
-        '''
-        return self.ui.on_status_changed(val)
 
     def null_carousel(self):
         # here just to support TunedFunction

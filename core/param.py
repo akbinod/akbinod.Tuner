@@ -2,14 +2,19 @@ import cv2
 
 class param:
     '''
-    The aspect specific to openCV's highGUI implementation is just a couple calls,
-    override the on_ui_x set of calls.
+    This class should be left as is.
+
+    Pass in the UI classs that implements the on_control_x set of
+    callbacks that this delegates to.
 
     '''
-    def __init__(self, ui, name, *, max, min, default, cb_on_update=None) -> None:
+    def __init__(self, ui, name, *, max, min, default) -> None:
         if max is None: raise ValueError("Must have 'max' to define a regular trackbar.")
         self.ui = ui
-        self.on_update = cb_on_update
+        # We want this ref instead of directly calling an UI
+        # interface method so that update propagation can be
+        # turned on and off as needed.
+        self.on_update = ui.on_control_changed
         self.name = name
         self.max = max
         self.min = 0 if min is None else (min if min >= 0 else 0)
@@ -17,33 +22,14 @@ class param:
         self._value = self.default
 
         # init UI
-        self.on_ui_create()
+        ui.on_control_create(self)
 
         # do not trigger the event - things are just getting set up
         # the "begin()" and other methods will reach out for the args anyway
         self.set_value(self.default,True)
-
-    def on_ui_create(self):
-        self.trackbar = cv2.createTrackbar(self.name
-                                            , self.ui.window
-                                            ,self.default
-                                            ,self.max
-                                            ,self.set_value)
-        cv2.setTrackbarMin(self.name, self.ui.window,self.min)
         return
-    def on_ui_update(self,val):
-        try:
-            boo = self.on_update
-            # the UI triggers a callback from Qt so turn off event handling for a bit
-            self.on_update = None
-            cv2.setTrackbarPos(self.name, self.ui.window, val)
-        except:
-            pass
-        finally:
-            # turn event handling back on
-            self.on_update = boo
 
-        return
+
     def spec(self):
         # these must be ints, not floats
         return int(self.max), int(self.default)
@@ -71,21 +57,26 @@ class param:
         # Just put away whatever value you get.
         # We'll interpret (e.g. nulls) when get_value is accessed.
         self._value = val
-        # show the new parameter for 10 seconds
-        self.ui.on_status_changed(self.name + ":" + str(self.get_display_value()))
+
         if headless_op:
             # This call is from code, not from an event generated
             # by a click. So update the UI without triggerin an update event
-            self.on_ui_update(val)
+            boo = self.on_update
+            try:
+                self.on_update = None
+                self.ui.on_control_update(self,val)
+            finally:
+                self.on_update = boo
+
         else:
             # python will delegate to the most derived class
             # the next line will kick off a refresh of the image
-            if not self.on_update is None: self.on_update(self.name,self.get_value())
+            if not self.on_update is None: self.on_update(self,self.get_value())
         return
 
     def get_value(self):
         '''
-        Must be overridden by derivers.
+        Must be overridden by derivers creating new types of params.
         Provides a class specific interpretation of trackbar values
 
         '''
@@ -102,12 +93,12 @@ class param:
         return self.get_value()
 
 class bool_param(param):
-    def __init__(self, ui, name, *, default=False, cb_on_update=None) -> None:
+    def __init__(self, ui, name, *, default=False) -> None:
         '''
         Represents True/False values.
         '''
         default=0 if default == False else 1
-        super().__init__(ui, name,min=0,max=1,default=default,cb_on_update=cb_on_update)
+        super().__init__(ui, name,min=0,max=1,default=default)
 
     def get_value(self):
         ret = super().get_value()
@@ -115,7 +106,7 @@ class bool_param(param):
         return ret
 
 class list_param(param):
-    def __init__(self, ui, name, *, data_list, display_list=None, default_item=None, return_index=True, cb_on_update=None) -> None:
+    def __init__(self, ui, name, *, data_list, display_list=None, default_item=None, return_index=True) -> None:
         '''
         Represents a list of values. The trackbar is used to pick the list index
         and the returned value is the corresponding item from the list.
@@ -142,8 +133,7 @@ class list_param(param):
                 raise ValueError("Display list must match data list in length.")
 
         self.__return_index = return_index
-        super().__init__(ui, name, max=max, min=0, default=default
-                        , cb_on_update=cb_on_update)
+        super().__init__(ui, name, max=max, min=0, default=default)
 
     def get_value(self):
         ret = super().get_value()
@@ -161,7 +151,7 @@ class list_param(param):
         return ret
 
 class dict_param(list_param):
-    def __init__(self, ui, name, dict_like, *, default_item_key, return_key=True, cb_on_update) -> None:
+    def __init__(self, ui, name, dict_like, *, default_item_key, return_key=True) -> None:
         '''
         Like a list tracker. Keys become data items, and associated data become display items.
         When return_key is True: you get the key back
@@ -191,7 +181,6 @@ class dict_param(list_param):
                             , data_list=data_list
                             , display_list=display_list
                             , default_item=default_item_key
-                            , cb_on_update=cb_on_update
                             , return_index=True)
 
         return
