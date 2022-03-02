@@ -13,27 +13,9 @@ from core.Params import Params
 from core.Carousel import *
 from constants import *
 from core.CodeTimer import CodeTimer
+from core.FormattedException import FormattedException
 
 class TunerUI(BaseTunerUI):
-    # def __init__(self, func_main, *
-    #             , func_downstream = None
-    #             , pinned_params = None
-    #             , parms_json = None
-    #             ):
-    #     '''
-    #     Tuning interface for users.
-    #     Please see the readme for detail.
-    #     Args:
-    #     func_main:  Required. The main target of tuning.
-    #     func_downstream: Optional. Similar to func, this is a downstream function to be called after func.
-    #     pinned_params: Params that tuner should pass in to the tuned function as is, without creating controls to manipulate them.
-    #     '''
-    #     super().__init__(func_main
-    #                         ,func_downstream=func_downstream
-    #                         ,pinned_params = pinned_params
-    #                         ,parms_json = parms_json)
-
-    #     return
 
     def build(self):
         '''
@@ -69,14 +51,15 @@ class TunerUI(BaseTunerUI):
             cv2.destroyWindow(self.ctx.func_name_down)
         pass
 
-    def on_error_update(self, error):
+    def on_error_update(self, e):
         try:
-            if error is Exception:
+            if e is FormattedException:
                 # we got an exception handed to us
-                val = f"{sys.exc_info()[1]}"
-            elif error is List:
-                # we got the better thought out thing that goes in the log
-                val = error[0]
+                val = e.error
+            else:
+                # we got something
+                es = FormattedException()
+                val = e.error
 
             cv2.displayStatusBar(self.ctx.func_name,val,60_000)
         except:
@@ -84,7 +67,7 @@ class TunerUI(BaseTunerUI):
         return
 
     def on_timing_update(self, ct:CodeTimer):
-        cv2.displayStatusBar(self.ctx.func_name,str(ct),5_000)
+        cv2.displayStatusBar(self.ctx.func_name, f"processed in {str(ct)}",5_000)
         return
 
     def on_status_update(self, status):

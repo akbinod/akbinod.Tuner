@@ -22,6 +22,7 @@ from core.Carousel import Carousel
 from constants import *
 from core.Frame import Frame
 from core.CodeTimer import CodeTimer
+from core.FormattedException import FormattedException
 
 class Tuner:
     def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
@@ -408,21 +409,12 @@ class Tuner:
 
     def capture_error(self, func_name):
         self.invocation.errored = True
-        # format the error string and the call stack
-        error = f"{sys.exc_info()[0]} - {sys.exc_info()[1]}"
-        l = traceback.format_tb(sys.exc_info()[2])
-        # we're always at the top, so get rid of that
-        l.pop(0)
-        # put in the nice error message
-        l.append(error)
-        # I like to see the most recent call up at the top
-        # - not scroll to the bottom for it
-        l.reverse()
-        self.invocation.error = l
+        es = FormattedException()
+        self.invocation.error = es.json
         # do an immediate dump to file
         self.save_carousel()
         # finally, set the gui status display
-        self.ui.on_error_update(l)
+        self.ui.on_error_update(es)
 
     def force_save(self):
         # save now

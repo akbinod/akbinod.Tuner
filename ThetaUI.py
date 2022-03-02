@@ -1,11 +1,18 @@
+
 import tkinter as tk
+
 from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
+
+import PIL
+from PIL import Image, ImageTk
+
 from core.tk.panes import panes
 from core.tk.jsonToTtkTree import jsonToTtkTree
 from core.tk.StatusBar import StatusBar
+from core.CodeTimer import CodeTimer
 
 import cv2
 import numpy as np
@@ -17,25 +24,10 @@ from core.Carousel import Carousel
 from core.Tuner import Tuner
 from core.Params import Params
 from core.BaseTunerUI import BaseTunerUI
+from core.FormattedException import FormattedException
 from constants import *
 
 class ThetaUI(BaseTunerUI):
-    def __init__(self, func_main, *
-                , func_downstream = None
-                , pinned_params = None) -> None:
-        '''
-        Tuning GUI for users.
-        Please see the readme for detail.
-        Args:
-        func_main:  Required. The main target of tuning.
-        func_downstream: Optional. Similar to func, this is a downstream function to be called after func.
-        pinned_params: Params that tuner should pass in to the tuned function as is, without creating controls to manipulate them.
-        '''
-        super().__init__(func_main
-                    ,func_downstream=func_downstream
-                    ,pinned_params=pinned_params)
-
-        return
 
     def build(self):
         def config_menus(win):
@@ -82,18 +74,30 @@ class ThetaUI(BaseTunerUI):
             return mm
         def config_status(win):
             sdef = {
-                    "timing":{
-                        "justify":"center"
+                    "frame":{
+                        "justify":"right"
                         ,"minwidth":10
+                    }
+                    ,"timing":{
+                        "justify":"center"
+                        ,"minwidth":20
                     }
                     ,"error":{
                         "justify":"right"
                         ,"minwidth":5
                     }
+
             }
             # check row number
             myStatusBar = StatusBar(win,1,sdef)
             return myStatusBar
+        def config_canvas(master):
+            c = tk.Canvas(master=master
+                    ,background="black",relief=tk.FLAT
+                    ,border=2)
+            c.grid(in_=master,column=0,row=0,sticky="nswe")
+
+            return c
 
         self.className = "ak.binod.Tuner.Theta"
         self.winMain = tk.Tk(baseName=self.className,className=self.className)
@@ -112,15 +116,22 @@ class ThetaUI(BaseTunerUI):
         self.main_menu = config_menus(self.winMain)
 
         # get a 3 paned window going
-        self.panes = panes(self.winMain,["results", "image", "tuner"]).build()
+        pns = panes(self.winMain,["results", "image", "tuner"]).build()
+        self.results_frame:tk.Frame = pns['results']
+        self.image_frame:tk.Frame = pns['image']
+        self.tuner_frame:tk.Frame = pns['tuner']
 
         # non proportional font on Mac, used to be a system font
         res_style = ttk.Style().configure('results.Treeview', font='Menlo 16')
-        self.results_tree = jsonToTtkTree(self.panes["results"], "results",style=res_style)
+        self.results_tree = jsonToTtkTree(self.results_frame, "results",style=res_style)
+
+        # this is where we will put images
+        self.canvas = config_canvas(self.image_frame)
 
         # style = ttk.Style()
         # style.theme_use("alt")
-        self.winMain.mainloop()
+
+        #This is not the place to do a blocking show()
         return
 
     def onClick_File_Exit(self, *args):
@@ -139,34 +150,127 @@ class ThetaUI(BaseTunerUI):
         return
 
     def onClick_File_SaveImage(self, *args, **kwargs):
-        # mb.showinfo("Help...","Is not on the way!")
+        self.ctx.save_image()
         return
 
     def onClick_File_SaveResult(self, *args, **kwargs):
-        # mb.showinfo("boo..."," onClick_File_SaveResult triggered")
+        # force this invocation data to be saved
+        self.save_invocation()
         return
 
     def onClick_View_Next(self, *args, **kwargs):
-        # mb.showinfo("Next...","Next triggered")
+        # advance the carousel and invoke
+        if not self.in_grid_search:
+            self.ctx.advance_frame()
         return
 
     def onClick_View_Prev(self, *args, **kwargs):
-        # mb.showinfo("Next...","Prev triggered")
+        if not self.in_grid_search:
+            self.ctx.regress_frame()
         return
 
     def onClick_RateClose(self, *args, **kwargs):
-        # mb.showinfo("boo..."," onClick_RateClose triggered")
+        # TODO - genericize how these rating menus are created and handled
+        self.ctx.tag(Tags.close)
         return
 
     def onClick_RateExact(self, *args, **kwargs):
-        # mb.showinfo("boo..."," onClick_RateExact triggered")
+        self.ctx.tag(Tags.exact)
         return
 
     def onClick_RateAvoid(self, *args, **kwargs):
-        # mb.showinfo("boo..."," onClick_RateAvoid triggered")
+        self.ctx.tag(Tags.avoid)
         return
 
     def onClick_GridSearch(self, *args, **kwargs):
-        mb.showinfo("boo..."," onClick_GridSearch triggered")
+        if not self.in_grid_search:
+            self.__grid_search()
         return
 
+    def on_error_update(self, e):
+        try:
+            if not e is FormattedException: e = FormattedException()
+
+            self.StatusBar["error"] = "err"
+            self.results_tree.build(e.json, under_heading="exception")
+        except:
+            pass
+        return
+
+    def on_timing_update(self, ct:CodeTimer):
+        self.StatusBar["timing"] = str(ct)
+        return
+
+    def on_status_update(self, status):
+        self.StatusBar["status"] = status
+        return
+
+    def on_show_main(self, img):
+        if not self.headless:
+            image = np.copy(img)
+            image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
+            # weird bug with the photo losing scope - hold a ref here
+            self.image_ref  = ImageTk.PhotoImage(image=image)
+            self.canvas.create_image(0,0,image=self.image_ref, sticky="nsew")
+
+        return
+
+    def on_show_downstream(self,img):
+        if not self.headless:
+            # TODO: implement showing here
+            pass
+        return
+
+    def on_show_results(self, res):
+        if not self.headless:
+            self.results_tree.build(res, under_heading="results")
+        return
+
+    def on_await_user(self):
+        # TODO: should probably check to see if we are already loaded first
+        self.winMain.mainloop()
+        return
+
+    def on_frame_changed(self, new_frame):
+        super().on_frame_changed(new_frame)
+
+        # do UI stuff
+        title = f"{self.window}: {new_frame.title}"
+        try:
+            self.winMain.title(title)
+            self.StatusBar["frame"] = f"{new_frame.index} of {new_frame.tray_length}"
+        except:
+            pass
+
+        return
+
+    def on_control_create(self,param):
+        '''
+        Create a control that represents a tracked param.
+        '''
+        # param.trackbar = cv2.createTrackbar(param.name
+        #                                     ,self.window
+        #                                     ,param.default
+        #                                     ,param.max
+        #                                     ,param.set_value)
+        # cv2.setTrackbarMin(param.name, self.window,param.min)
+
+    def on_control_update(self,param,val):
+        '''
+        Update a control based on value set in code.
+        '''
+        # try:
+        #     cv2.setTrackbarPos(param.name, self.window, val)
+        # except Exception as e:
+        #     self.on_error_update(e)
+
+        return
+
+    # def on_control_changed(self, param, val):
+    #     '''
+    #     The value of this param just changed
+    #     '''
+    #     self.on_status_update(param.name + ":" + str(param.get_display_value()))
+    #     super().on_control_changed(param, val)
+    #     return

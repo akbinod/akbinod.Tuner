@@ -29,7 +29,6 @@ class panes():
 
         frames = {}
 
-        style = "TFrame"
         sticky = "nsew"
         sashrelief = tk.GROOVE
         sasshwidth = 5
@@ -46,7 +45,7 @@ class panes():
         right_child= tk.PanedWindow(master = pn,orient="vertical",sashwidth=sasshwidth, sashrelief=sashrelief)
         pn.add(right_child)
 
-        k = self.__panes_map["right_top"] if "top_right" in self.__panes_map else "right_top"
+        k = self.__panes_map["right_top"] if "right_bottom" in self.__panes_map else "right_top"
         fr = frames[k] = tk.Frame(master=right_child)
         right_child.add(fr)
 
