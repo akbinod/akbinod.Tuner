@@ -172,5 +172,5 @@ class jsonToTtkTree():
             parent = self.headings[under_heading]
         if parent != "":
             cn = self.t.get_children(parent)
-            self.t.delete(cn)
+            if len(cn) > 0: self.t.delete(cn)
         return
