@@ -23,6 +23,7 @@ from constants import *
 from core.Frame import Frame
 from core.CodeTimer import CodeTimer
 from core.FormattedException import FormattedException
+# from core.BaseTunerUI import BaseTunerUI
 
 class Tuner:
     def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
@@ -357,6 +358,11 @@ class Tuner:
         self.invocation.results.downstream=None
         self.invocation.force_save = False
 
+        try:
+            # give our UI a chance to clean up before an invoke
+            self.ui.on_before_invoke()
+        except Exception as e:
+            pass
         return
 
     def after_invoke(self, ct:CodeTimer = None):

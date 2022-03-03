@@ -19,6 +19,7 @@ import numpy as np
 import cv2
 import sys
 
+
 from TunerConfig import TunerConfig
 from core.Carousel import Carousel
 from core.Tuner import Tuner
@@ -82,10 +83,6 @@ class ThetaUI(BaseTunerUI):
                         "justify":"center"
                         ,"minwidth":20
                     }
-                    ,"error":{
-                        "justify":"right"
-                        ,"minwidth":5
-                    }
 
             }
             # check row number
@@ -96,7 +93,7 @@ class ThetaUI(BaseTunerUI):
                     ,background="black",relief=tk.FLAT
                     ,border=2)
             c.grid(in_=master,column=0,row=0,sticky="nswe")
-
+            c.bind('<Configure>',self.on_canvas_resized)
             return c
 
         self.className = "ak.binod.Tuner.Theta"
@@ -187,12 +184,18 @@ class ThetaUI(BaseTunerUI):
             self.__grid_search()
         return
 
+    def on_before_invoke(self):
+        '''
+        Called from the tuner.
+        '''
+        self.StatusBar.error = None
+        self.status = ""
+        return
+
     def on_error_update(self, e):
         try:
             if not e is FormattedException: e = FormattedException()
-
-            self.StatusBar["error"] = "err"
-            self.results_tree.build(e.json, under_heading="exception")
+            self.StatusBar.error = e
         except:
             pass
         return
@@ -207,15 +210,74 @@ class ThetaUI(BaseTunerUI):
 
     def on_show_main(self, img):
         if not self.headless:
-            image = np.copy(img)
-            image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(image)
-            # weird bug with the photo losing scope - hold a ref here
-            self.image_ref  = ImageTk.PhotoImage(image=image)
-            self.canvas.create_image(0,0,image=self.image_ref, sticky="nsew")
+            self.cvImage = img
+            self.do_pil_pipeline()
 
         return
+    def do_pil_pipeline(self):
+        # weird bug with the photo losing scope - hold a ref here
+        if not self.cvImage is None:
+            fx = None
+            fy = None
+            w = False
+            h = False
 
+            iw = self.cvImage.shape[1]
+            ih = self.cvImage.shape[0]
+            sw = self.image_frame.winfo_height()
+            sh = self.image_frame.winfo_width()
+            if sw > sh:
+                # screen wider than it is tall
+                # w=True
+                if iw > ih:
+                    # and the image is wider
+                    # reshape to a width aspect ration
+                    w=True
+                    fy = fx = sw/iw
+                else:
+                    # image is taller
+                    # reshape to a height aspect ratio
+                    h = True
+                    fy = fx = min(sw/iw, sh/ih)
+            else:
+                # screen taller than it is wide
+                # h = True
+                if ih > iw:
+                    # and the image is taller than it is wide
+                    # reshape to a height aspect ratio
+                    h = True
+                    fx = fy = sh/ih
+                else:
+                    # image is wider
+                    # reshape to a width aspect ration
+                    w=True
+                    fy = fx = min(sw/iw, sh/ih)
+            # if h:
+            #     # we are reshaping to fy
+            #     fx = fy = sh/ih
+            #     # fx = (iw/ih) * fy
+            # else:
+            #     # we are reshaping fx
+            #     fy = fx = sw/iw
+            #     # fy = (sh/ih) * fx
+
+            image = np.copy(self.cvImage)
+            # pil_image = pil_image.resize((width, height),resample=Image.BICUBIC)
+            image = cv2.resize(image,dsize=None,fx= fx,fy=fy, interpolation=cv2.INTER_LINEAR)
+            x = (self.image_frame.winfo_width() - image.shape[1]) // 2
+            y = (self.image_frame.winfo_height() - image.shape[0]) // 2
+
+            image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
+            self.photo_ref  = ImageTk.PhotoImage(image=image)
+
+            self.canvas.create_image(x,y,image=self.photo_ref,anchor="nw")
+
+    def on_canvas_resized(self, e, *args, **kwargs):
+        # TODO: hand this back to cv and remap
+        self.do_pil_pipeline()
+
+        return
     def on_show_downstream(self,img):
         if not self.headless:
             # TODO: implement showing here
@@ -224,7 +286,7 @@ class ThetaUI(BaseTunerUI):
 
     def on_show_results(self, res):
         if not self.headless:
-            self.results_tree.build(res, under_heading="results")
+            self.results_tree.build(res, under_heading="results", replace=True)
         return
 
     def on_await_user(self):

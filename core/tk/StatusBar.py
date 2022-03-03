@@ -1,11 +1,14 @@
 from collections import UserDict
 import tkinter as tk
 from tkinter import ttk
+from turtle import onclick
 
 from async_generator import yield_from_
 
+from core.FormattedException import FormattedException
+
 class StatusBar(UserDict):
-    def __init__(self, master:tk.Tk, in_row:int, segments:dict) -> None:
+    def __init__(self, master:tk.Tk, in_row:int, segments:dict, add_error_panel=True) -> None:
         '''
         Args
         master: the main window on which the status bar appears
@@ -35,7 +38,7 @@ class StatusBar(UserDict):
         '''
 
         super().__init__()
-
+        self.master = master
         # self.master:tk.Tk = master
         # set up the frame that contains everything else
         bar:tk.Frame = tk.Frame(
@@ -115,7 +118,36 @@ class StatusBar(UserDict):
             bar.columnconfigure(col,weight=0)
             super().__setitem__(key,this)
 
+        # finally add in the error panel
+        self.__error = None
+        if add_error_panel:
+            col += 1
+            this = {}
+            # no bound var for this
+            # this["var"] = tk.StringVar(self.__bar)
+            this["label"] = l = tk.Label(self.__bar
+                                        ,justify = "center" #text within
+                                        ,border=1
+                                        # ,bd=1
+                                        ,relief=tk.RIDGE
+                                        ,background= "silver"
+                                        ,padx=1
+                                        ,width=5
+                                        # ,textvariable=this["var"]
+                                        )
+            # add this label in to the bar
+            l.grid(in_ = bar, row=0,column=col,sticky="w")
+            # this label will not expand
+            bar.columnconfigure(col,weight=0)
+            super().__setitem__("error",this)
+            self.error_label = l
+            l.bind("<Button-1>",self.onclick_error)
+        else:
+            self.error_label = None
         return
+
+
+
 
     def __getitem__(self, key:str) -> str:
         var:tk.StringVar = super().__getitem__(key)["var"]
@@ -125,6 +157,10 @@ class StatusBar(UserDict):
         var:tk.StringVar = super().__getitem__(key)["var"]
         return var.set(str(item))
 
+    def onclick_error(self, *args, **kwargs):
+        if self.__error is not None:
+            self.error.show(self.master)
+        return
     @property
     def status(self):
         return self[self.__main_status]
@@ -133,7 +169,20 @@ class StatusBar(UserDict):
     def status(self,val):
         self[self.__main_status] = val
         return
+    @property
+    def error(self):
+        return self.__error
 
+    @error.setter
+    def error(self,val:FormattedException):
+        self.__error = val
+        if self.error_label is not None:
+            # we have one of those set up
+            if val is None:
+                self.error_label.configure(background="green")
+            else:
+                self.error_label.configure(background="red")
+        return
 if __name__ == "__main__":
 
     # needs to be done here, presumably done

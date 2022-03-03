@@ -103,6 +103,12 @@ class BaseTunerUI:
 
         return self._parms.track_dict(name,dict_like,default_item_key,return_key)
 
+    def on_before_invoke(self):
+        '''
+        Called from the tuner. Override this if you want to
+        clear status, error indicators etc
+        '''
+        return
     def on_error_update(self, error):
         '''
         For downstream objects  to communicate errors.

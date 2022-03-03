@@ -66,14 +66,19 @@ class jsonToTtkTree():
         parent = ""
 
         if under_heading is not None:
-
             if under_heading in self.headings:
                 parent = self.headings[under_heading]
-                if replace: self.delete(under_heading)
+                if replace:
+                    # out with the old
+                    self.delete(under_heading=under_heading)
+                    # in with the new
+                    parent = self.t.insert("", 'end', text=under_heading)
+                    self.headings[under_heading] = parent
             else:
                 # create the heading
                 parent = self.t.insert(parent, 'end', text=under_heading)
                 self.headings[under_heading] = parent
+
 
         self.paint(parent,root_node_text,j)
 
@@ -171,6 +176,7 @@ class jsonToTtkTree():
         if under_heading is not None and under_heading in self.headings:
             parent = self.headings[under_heading]
         if parent != "":
-            cn = self.t.get_children(parent)
-            if len(cn) > 0: self.t.delete(cn)
+            self.t.delete([parent])
+            # cn = self.t.get_children(parent)
+            # if len(cn) > 0: self.t.delete(cn)
         return

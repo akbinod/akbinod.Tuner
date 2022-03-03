@@ -59,10 +59,7 @@ class SampleMainWindow():
                         "justify":"center"
                         ,"minwidth":10
                     }
-                    ,"error":{
-                        "justify":"right"
-                        ,"minwidth":5
-                    }
+
             }
             # check row number
             myStatusBar = StatusBar(win,1,sdef)

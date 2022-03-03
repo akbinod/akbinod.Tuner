@@ -68,8 +68,6 @@ class FormattedException():
         self.end = self.format(self.stack[f[0]])
         self.start = self.format(self.stack[f[1]])
 
-        # test
-        self.show()
         return
     def format(self, this):
         s = f'{this["file"]} :: {this["method"]} : {this["line"]}  [line:{this["line_num"]}]'
@@ -118,8 +116,7 @@ class FormattedException():
 
         return json.dumps(self.json)
 
-    def show(self, *, title="Exception"):
-        ex = ExceptionWindow("Testing")
-        ex.exception = self
+    def show(self, master):
+        ex = ExceptionWindow(master,fex=self)
         ex.show()
         return
