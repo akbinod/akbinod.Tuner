@@ -44,7 +44,7 @@ class Panes():
         right_child= tk.PanedWindow(master = pn,orient="vertical",sashwidth=sasshwidth, sashrelief=sashrelief)
         pn.add(right_child)
 
-        k = self.__panes_map["right_top"] if "right_bottom" in self.__panes_map else "right_top"
+        k = self.__panes_map["right_top"] if "right_top" in self.__panes_map else "right_top"
         fr = frames[k] = tk.Frame(master=right_child)
         right_child.add(fr)
 
@@ -52,7 +52,9 @@ class Panes():
         fr = frames[k] = tk.Frame(master=right_child)
         right_child.add(fr)
 
-        # this is a test
+        right_child.rowconfigure(0,weight=8)
+        right_child.rowconfigure(1,weight=2)
+
         for key in frames:
             f:tk.Frame = frames[key]
             # each frame just has one col, one row for grid geometry manager
@@ -60,6 +62,7 @@ class Panes():
             f.columnconfigure(0,weight=1)
 
             if test:
+                # this is a test
                 l = tk.Label(master=f,justify='center',anchor="center", text=key,border=10,relief=tk.FLAT)
                 # t = ttk.Treeview(f,selectmode='browse')
                 l.grid(sticky=sticky)

@@ -127,11 +127,12 @@ class StatusBar(UserDict):
             # this["var"] = tk.StringVar(self.__bar)
             this["label"] = l = tk.Label(self.__bar
                                         ,justify = "center" #text within
-                                        ,border=1
+                                        ,border=2
                                         # ,bd=1
                                         ,relief=tk.RIDGE
                                         ,background= "silver"
-                                        ,padx=1
+                                        ,padx=2
+                                        ,pady=2
                                         ,width=5
                                         # ,textvariable=this["var"]
                                         )

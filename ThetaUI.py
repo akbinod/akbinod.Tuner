@@ -122,7 +122,7 @@ class ThetaUI(BaseTunerUI):
         self.results_tree = jsonToTtkTree(self.results_frame, "results",style=res_style)
 
         # this is where we will put images
-        self.canvas = Canvas(self.image_frame, self.StatusBar["sampling"])
+        self.canvas = Canvas(self.image_frame, self.StatusBar, "sampling")
 
         # style = ttk.Style()
         # style.theme_use("alt")
@@ -130,6 +130,9 @@ class ThetaUI(BaseTunerUI):
         #This is not the place to do a blocking show()
         return
 
+    def __del__(self):
+
+        return
     def onClick_File_Exit(self, *args):
         # delete all resources
         self.winMain.quit()
@@ -215,7 +218,7 @@ class ThetaUI(BaseTunerUI):
 
     def on_show_downstream(self,img):
         if not self.headless:
-            self.canvas.build("downstream",img)
+            self.canvas.render("downstream",img)
             pass
         return
 

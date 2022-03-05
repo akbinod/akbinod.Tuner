@@ -6,11 +6,14 @@ import numpy as np
 import cv2
 # import PIL
 from PIL import Image, ImageTk
+import math
+
+from core.tk.StatusBar import StatusBar
 
 
 
 class Canvas():
-    def __init__(self,master, status_panel) -> None:
+    def __init__(self,master, sb:StatusBar, status_key) -> None:
         # assume there is just the one pic for now
         self.canvas:tk.Canvas = tk.Canvas(master=master
                 ,background="black",relief=tk.FLAT
@@ -19,7 +22,8 @@ class Canvas():
         self.canvas.bind('<Configure>',self.on_canvas_resized)
         self.resiz=""
         self.images = {}
-        self.status_panel = status_panel
+        self.sb = sb
+        self.status_key = status_key
         self.master = master
         solvers.options['show_progress'] = False
         return
@@ -40,83 +44,116 @@ class Canvas():
         subject to: (A matrix)
             h>0
             w>0
-            express proportion between two (e.g., w - 1.5w = 0)
+            express proportion between two (e.g., w - 1.5h = 0)
+            express proportion between two from the other side to
+            get rid of the less than - careful with the signs (e.g., 2/3w - h = 0)
             max width
             max height
         '''
-        def get_A(iw,ih,sw,sh):
-            if sh >= sw:
-                if ih >= iw:
-                    A =matrix( [
-                        [1.0,0.0,-1.0,0.0,ih/iw] #ih/iw comes here for portrait, portrait
-                        ,[0.0,1.0,0.0,-1.0, -1]
-                    ])
-                else:
-                    A =matrix( [
-                        [1.0,0.0,-1.0,0.0,-1]
-                        ,[0.0,1.0,0.0,-1.0, iw/ih] #iw/ih comes here for portrait, landscape
-                    ])
+
+
+        def get_new(iw,ih,screen_in_landscape, b,c):
+
+
+            Al =matrix( [
+                [1.0,0.0,-1.0,0.0, - 1.0]
+                ,[0.0,1.0,0.0,-1.0, iw/ih] #iw/ih comes here for portrait
+            ])
+            Ap =matrix( [
+                [1.0,0.0,-1.0,0.0, - ih/iw] #ih/iw comes here for portrait
+                ,[0.0,1.0,0.0,-1.0, 1.0]
+            ])
+            sol=solvers.lp(c,Al,b)
+            # solver generally returns less than the max by one
+            nwl = int(sol['x'][0]) + 1
+            nhl = int(sol['x'][1]) + 1
+
+            sol=solvers.lp(c,Ap,b)
+            # solver generally returns less than the max by one
+            nw = int(sol['x'][0]) + 1
+            nh = int(sol['x'][1]) + 1
+
+            if nwl != nw or nhl != nh:
+                print(nwl - nw, nhl - nh)
+
+            if screen_in_landscape:
+            # screen is in landscape
+            # get resize dimensions
+                return nwl, nhl
             else:
-                if ih < iw:
-                    A =matrix( [
-                        [1.0,0.0,-1.0,0.0,-1]
-                        ,[0.0,1.0,0.0,-1.0, iw/ih] #iw/ih comes here for landscape, portrait
-                    ])
-                else:
-                    A =matrix( [
-                        [1.0,0.0,-1.0,0.0,ih/iw] #ih/iw comes here for landscape,landscap
-                        ,[0.0,1.0,0.0,-1.0, -1]
-                    ])
-            return A
+                return nw, nh
+
+        def get_screen_split(tsw,tsh):
+            '''
+            Returns True if you should use landscape, otherwise returns false
+            '''
+            w = h = 0
+            for k in self.images:
+                this = self.images[k]
+                im = this["cvImage"]
+                w += im.shape[1]
+                h += im.shape[0]
+
+            # landscape
+            lsw = (tsw - (separator * (num_images - 1)))/num_images
+            lsh = tsh
+            l = np.sqrt((tsw - lsw)**2 + (tsh - lsh)**2)
+
+            psw = tsw
+            psh = (tsh - (separator * (num_images - 1)))/num_images
+            p = np.sqrt((tsw - psw)**2 + (tsh - psh)**2)
+
+            # when rmsd is lower, waste is minimized
+            # return screen split mode and how much space each image gets to display itself
+            if l < p:
+                # screen landscape - split horizontal panes (l,r)
+                return True, lsw,lsh
+            else:
+                # screen portrait - split vertical panes (t,b)
+                return False, psw,psh
+
 
         separator = 5
         num_images = len(self.images)
         if num_images == 0: return
+        tsh = self.master.winfo_height()
+        tsw = self.master.winfo_width()
+        if tsh <= 0 or tsw <= 0: return
+
+        landscape, sw,sh = get_screen_split(tsw,tsh)
+        if sh <= 0 or sw <= 0: return
 
         # maximizing height and width - mul by -1 since the optimizer is a cost minimizer
         c = matrix([1.0,1.0]) * -1
-
-        tsh = self.master.winfo_height()
-        tsw = self.master.winfo_width()
-        sw = sh = 0
-        if tsw >= tsh:
-            # screen wider than it is tall - split horizontal panes (l,r)
-
-            # this is how much space each image gets to display itself
-            sw = (tsw - (separator * (num_images - 1)))/num_images
-            sh = tsh
-            for i,k in enumerate(self.images):
-                this = self.images[k]
+        for i,k in enumerate(self.images):
+            this = self.images[k]
+            if landscape:
                 top = 0
                 left = (i * sw ) + (i * separator)
-                this["tl"] = (left,top)
-        else:
-            # screen taller than it is wide - split vertical panes (t,b)
-            sw = tsw
-            sh = (tsh - (separator * (num_images - 1)))/num_images
-            for i,k in enumerate(self.images):
-                this = self.images[k]
+            else:
                 left = 0
                 top = (i * sh ) + (i * separator)
-                this["tl"] = (left,top)
 
-        for k in self.images:
-            this = self.images[k]
             image = np.copy(this["cvImage"])
             w = image.shape[1]
             h = image.shape[0]
-            # A
-            A = get_A(w,h,sw,sh)
-            # b for this image
-            b =matrix([float(sw),float(sh),0.0,0.0,0.0])
 
-            # get resize dimensions
+            A =matrix( [
+                 [1.0,0.0,-1.0, 0.0, -1.0,  h/w]
+                ,[0.0,1.0, 0.0,-1.0,  w/h, -1.0]
+            ])
+            # b for this image
+            b =matrix([float(sw),float(sh),0.0,0.0,0.0, 0.0])
+
             sol=solvers.lp(c,A,b)
             # solver generally returns less than the max by one
             nw = int(sol['x'][0]) + 1
             nh = int(sol['x'][1]) + 1
-            self.resize_mode = "SAMPL" if nw <= w else "INTER"
-            if self.status_panel is not None: self.status_panel = self.resize_mode
+            if not math.isclose(nw/nh,w/h, rel_tol=10**-1):
+                self.resize_mode = "BAD"
+            else:
+                self.resize_mode = "SAMPL" if nw <= w else "INTER"
+            if self.sb is not None: self.sb[self.status_key] = self.resize_mode
 
             # use cv to resize
             image = cv2.resize(image
@@ -129,56 +166,48 @@ class Canvas():
             # weird bug with the photo losing scope - hold a ref here
             this["photo_ref"] = ImageTk.PhotoImage(image=image)
             # phew, finally show
-            x = ((sw - nw) // 2) + this["tl"][0]
-            y = ((sh - nh) // 2) + this["tl"][1]
+            x = ((sw - nw) // 2) + left
+            y = ((sh - nh) // 2) + top
             self.canvas.create_image((x,y),image=this["photo_ref"],anchor="nw")
 
-    def simple_resize(self, iw, ih, sw, sh):
-        w = False
-        h = False
-        fx = None
-        fy = None
-        if sw > sh:
-            # screen wider than it is tall
-            # w=True
-            if iw > ih:
-                # and the image is wider
-                # reshape to a width aspect ration
-                w=True
-                fy = fx = sw/iw
-            else:
-                # image is taller
-                # reshape to a height aspect ratio
-                h = True
-                fy = fx = min(sw/iw, sh/ih)
-        else:
-            # screen taller than it is wide
-            # h = True
-            if ih > iw:
-                # and the image is taller than it is wide
-                # reshape to a height aspect ratio
-                h = True
-                fx = fy = sh/ih
-            else:
-                # image is wider
-                # reshape to a width aspect ration
-                w=True
-                fy = fx = min(sw/iw, sh/ih)
-        # if h:
-        #     # we are reshaping to fy
-        #     fx = fy = sh/ih
-        #     # fx = (iw/ih) * fy
-        # else:
-        #     # we are reshaping fx
-        #     fy = fx = sw/iw
-        #     # fy = (sh/ih) * fx
+    # def simple_resize(self, iw, ih, sw, sh):
+    #     w = False
+    #     h = False
+    #     fx = None
+    #     fy = None
+    #     if sw > sh:
+    #         # screen wider than it is tall
+    #         # w=True
+    #         if iw > ih:
+    #             # and the image is wider
+    #             # reshape to a width aspect ration
+    #             w=True
+    #             fy = fx = sw/iw
+    #         else:
+    #             # image is taller
+    #             # reshape to a height aspect ratio
+    #             h = True
+    #             fy = fx = min(sw/iw, sh/ih)
+    #     else:
+    #         # screen taller than it is wide
+    #         # h = True
+    #         if ih > iw:
+    #             # and the image is taller than it is wide
+    #             # reshape to a height aspect ratio
+    #             h = True
+    #             fx = fy = sh/ih
+    #         else:
+    #             # image is wider
+    #             # reshape to a width aspect ration
+    #             w=True
+    #             fy = fx = min(sw/iw, sh/ih)
 
 
-        # random, huh?
-        fx *= 1.2
-        fy *= 1.2
+    #     # random, huh?
+    #     fx *= 1.2
+    #     fy *= 1.2
 
-        return fx,fy
+    #     return fx,fy
 
     def demo_better_resize(self, iw, ih, sw, sh):
 

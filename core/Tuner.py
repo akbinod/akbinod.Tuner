@@ -407,6 +407,8 @@ class Tuner:
             val = self.__insert_thumbnail(val, self.frame.tn_main)
             self.frame.user_image_main = val
             self.ui.on_show_main(val)
+            # TODO - take out this hack
+            self.ui.on_show_downstream(val)
         else:
             # the object setting this is the downstream func
             val = self.__insert_thumbnail(val, self.frame.tn_down)
