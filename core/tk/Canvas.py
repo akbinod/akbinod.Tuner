@@ -123,7 +123,8 @@ class Canvas():
         landscape, sw,sh = get_screen_split(tsw,tsh)
         if sh <= 0 or sw <= 0: return
 
-        # maximizing height and width - mul by -1 since the optimizer is a cost minimizer
+        # maximizing height and width
+        # - mul by -1 since the optimizer is a cost minimizer
         c = matrix([1.0,1.0]) * -1
         for i,k in enumerate(self.images):
             this = self.images[k]
