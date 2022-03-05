@@ -1,8 +1,7 @@
-from doctest import master
 import tkinter as tk
 from tkinter import ttk
 
-class panes():
+class Panes():
     def __init__(self, win:tk.Tk, names:list) -> None:
         self.win = win
         if names is None: names = []

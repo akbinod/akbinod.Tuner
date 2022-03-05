@@ -4,6 +4,7 @@ import inspect
 import numpy as np
 from core.DecoratorBase import *
 from TunerUI import TunerUI
+from ThetaUI import ThetaUI
 
 class TunedFunction(DecoratorBase):
 	def __init__(self, *args, **kwargs):
@@ -32,6 +33,7 @@ class TunedFunction(DecoratorBase):
 			# First time through: create and kick off the tuner
 			# these are params to not mess with - just pass them in unchanged to the target function
 			pinned_params = {} if "pinned" not in self.inits else self.inits["pinned"]
+			# self.tuner = TunerUI(self.target,pinned_params=pinned_params)
 			self.tuner = TunerUI(self.target,pinned_params=pinned_params)
 
 			is_method = self.hacky_is_self(args[0]) if len(args) > 0 else False

@@ -114,8 +114,8 @@ class list_param(param):
         is used in Tuner's displays - but not returned anywhere.
         '''
         if data_list is None: raise ValueError("Must have data_list to define a list trackbar.")
-        self.__data_list = data_list
-        self.__display_list = display_list
+        self.data_list = data_list
+        self.display_list = display_list
         max = min = default = 0
         if not data_list is None:
             max = len(data_list) - 1
@@ -138,16 +138,16 @@ class list_param(param):
     def get_value(self):
         ret = super().get_value()
         if not self.__return_index:
-            ret = self.__data_list[ret]
+            ret = self.data_list[ret]
         return ret
 
     def get_display_value(self):
 
-        if self.__display_list is None:
+        if self.display_list is None:
             ret = self.get_value()
         else:
             ret = super().get_value()
-            ret = self.__display_list[ret]
+            ret = self.display_list[ret]
         return ret
 
 class dict_param(list_param):

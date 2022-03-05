@@ -6,19 +6,13 @@ from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
 
-import PIL
-from PIL import Image, ImageTk
-
-from core.tk.panes import panes
+from core.tk.Panes import Panes
 from core.tk.jsonToTtkTree import jsonToTtkTree
 from core.tk.StatusBar import StatusBar
+from core.tk.Canvas import Canvas
 from core.CodeTimer import CodeTimer
 
-import cv2
 import numpy as np
-import cv2
-import sys
-
 
 from TunerConfig import TunerConfig
 from core.Carousel import Carousel
@@ -27,6 +21,7 @@ from core.Params import Params
 from core.BaseTunerUI import BaseTunerUI
 from core.FormattedException import FormattedException
 from constants import *
+from core.param import param,list_param,bool_param,dict_param
 
 class ThetaUI(BaseTunerUI):
 
@@ -83,18 +78,16 @@ class ThetaUI(BaseTunerUI):
                         "justify":"center"
                         ,"minwidth":20
                     }
+                    ,"sampling":{
+                        "justify":"center"
+                        ,"minwidth":5
+                    }
 
             }
             # check row number
             myStatusBar = StatusBar(win,1,sdef)
             return myStatusBar
-        def config_canvas(master):
-            c = tk.Canvas(master=master
-                    ,background="black",relief=tk.FLAT
-                    ,border=2)
-            c.grid(in_=master,column=0,row=0,sticky="nswe")
-            c.bind('<Configure>',self.on_canvas_resized)
-            return c
+
 
         self.className = "ak.binod.Tuner.Theta"
         self.winMain = tk.Tk(baseName=self.className,className=self.className)
@@ -113,17 +106,23 @@ class ThetaUI(BaseTunerUI):
         self.main_menu = config_menus(self.winMain)
 
         # get a 3 paned window going
-        pns = panes(self.winMain,["results", "image", "tuner"]).build()
+        pns = Panes(self.winMain,["results", "image", "tuner"]).build()
         self.results_frame:tk.Frame = pns['results']
         self.image_frame:tk.Frame = pns['image']
         self.tuner_frame:tk.Frame = pns['tuner']
+        # configure its grid
+        self.controls = []
+        self.control_columns = 3
+        for i in range(self.control_columns):
+            self.tuner_frame.columnconfigure(i,pad=2,weight=1)
+
 
         # non proportional font on Mac, used to be a system font
         res_style = ttk.Style().configure('results.Treeview', font='Menlo 16')
         self.results_tree = jsonToTtkTree(self.results_frame, "results",style=res_style)
 
         # this is where we will put images
-        self.canvas = config_canvas(self.image_frame)
+        self.canvas = Canvas(self.image_frame, self.StatusBar["sampling"])
 
         # style = ttk.Style()
         # style.theme_use("alt")
@@ -210,77 +209,13 @@ class ThetaUI(BaseTunerUI):
 
     def on_show_main(self, img):
         if not self.headless:
-            self.cvImage = img
-            self.do_pil_pipeline()
+            self.canvas.render("main",img)
 
         return
-    def do_pil_pipeline(self):
-        # weird bug with the photo losing scope - hold a ref here
-        if not self.cvImage is None:
-            fx = None
-            fy = None
-            w = False
-            h = False
 
-            iw = self.cvImage.shape[1]
-            ih = self.cvImage.shape[0]
-            sw = self.image_frame.winfo_height()
-            sh = self.image_frame.winfo_width()
-            if sw > sh:
-                # screen wider than it is tall
-                # w=True
-                if iw > ih:
-                    # and the image is wider
-                    # reshape to a width aspect ration
-                    w=True
-                    fy = fx = sw/iw
-                else:
-                    # image is taller
-                    # reshape to a height aspect ratio
-                    h = True
-                    fy = fx = min(sw/iw, sh/ih)
-            else:
-                # screen taller than it is wide
-                # h = True
-                if ih > iw:
-                    # and the image is taller than it is wide
-                    # reshape to a height aspect ratio
-                    h = True
-                    fx = fy = sh/ih
-                else:
-                    # image is wider
-                    # reshape to a width aspect ration
-                    w=True
-                    fy = fx = min(sw/iw, sh/ih)
-            # if h:
-            #     # we are reshaping to fy
-            #     fx = fy = sh/ih
-            #     # fx = (iw/ih) * fy
-            # else:
-            #     # we are reshaping fx
-            #     fy = fx = sw/iw
-            #     # fy = (sh/ih) * fx
-
-            image = np.copy(self.cvImage)
-            # pil_image = pil_image.resize((width, height),resample=Image.BICUBIC)
-            image = cv2.resize(image,dsize=None,fx= fx,fy=fy, interpolation=cv2.INTER_LINEAR)
-            x = (self.image_frame.winfo_width() - image.shape[1]) // 2
-            y = (self.image_frame.winfo_height() - image.shape[0]) // 2
-
-            image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(image)
-            self.photo_ref  = ImageTk.PhotoImage(image=image)
-
-            self.canvas.create_image(x,y,image=self.photo_ref,anchor="nw")
-
-    def on_canvas_resized(self, e, *args, **kwargs):
-        # TODO: hand this back to cv and remap
-        self.do_pil_pipeline()
-
-        return
     def on_show_downstream(self,img):
         if not self.headless:
-            # TODO: implement showing here
+            self.canvas.build("downstream",img)
             pass
         return
 
@@ -311,6 +246,23 @@ class ThetaUI(BaseTunerUI):
         '''
         Create a control that represents a tracked param.
         '''
+        if isinstance(param, (dict_param,list_param)):
+            # build list
+            c = tk.Listbox(master = self.tuner_frame,justify="left",bg="silver")
+            c.configure(listvariable=param.display_list)
+        elif isinstance(param, (bool_param)):
+            # build checkbox
+            c = tk.Checkbutton(master=self.tuner_frame, justify="left",bg="silver")
+        else:
+            # build spinbox
+            c = tk.Spinbox(master=self.tuner_frame,justify="right",bg="silver")
+        i = len(self.controls)
+        row = i // self.control_columns
+        col = i % self.control_columns
+        c.grid(in_=self.tuner_frame,column=col,row=row,sticky="nwe")
+        self.tuner_frame.rowconfigure(row,weight=1)
+        self.controls.append(c)
+
         # param.trackbar = cv2.createTrackbar(param.name
         #                                     ,self.window
         #                                     ,param.default
@@ -336,3 +288,13 @@ class ThetaUI(BaseTunerUI):
     #     self.on_status_update(param.name + ":" + str(param.get_display_value()))
     #     super().on_control_changed(param, val)
     #     return
+
+    @property
+    def sampling(self):
+        return self.StatusBar["sampling"]
+
+    @sampling.setter
+    def sampling(self,val):
+        self.StatusBar["sampling"] = val
+        return
+
