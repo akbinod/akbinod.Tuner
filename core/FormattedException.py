@@ -16,7 +16,7 @@ class FormattedException():
         and add the window as a child of your 'master'
 
         Minimal usage: implement an exception handler, and create a new
-        instance of this class. That's about it.
+        instance of this class. Run this file for an example.
         '''
         try:
             self.master = master
@@ -189,6 +189,7 @@ class FormattedException():
         return json.dumps(self.json)
 
     def show(self):
+        self.win.bell()
         if isinstance(self.win,tk.Toplevel):
             self.win.deiconify()
         else:

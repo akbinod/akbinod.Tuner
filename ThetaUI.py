@@ -5,6 +5,7 @@ from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
+
 from core.ParamCheck import ParamCheck
 from core.ParamControl import ParamControl
 from core.ParamCombo import ParamCombo
@@ -29,7 +30,11 @@ from constants import *
 from core.param import param,list_param,bool_param,dict_param
 
 class ThetaUI(BaseTunerUI):
-
+    def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None):
+        super().__init__(func_main, func_downstream=func_downstream, pinned_params=pinned_params, parms_json=parms_json)
+        self.__grid_search_cancelled = False
+        # default miliseconds to wait in grid search
+        self.gs_delay = 3000
     def build(self):
         def config_menus(win):
             # sets up a menu system
@@ -46,30 +51,30 @@ class ThetaUI(BaseTunerUI):
             # add commands to the File menu
             mnu.add_command(label="Open json",command=self.onClick_File_Open)
             mnu.add_separator()
-            mnu.add_command(label="Save Image",accelerator="F2")
+            mnu.add_command(label="Save Image",accelerator="F2",command=self.onClick_File_SaveImage)
             win.bind("<F2>", self.onClick_File_SaveImage)
-            mnu.add_command(label="Save Results",accelerator="F3")
+            mnu.add_command(label="Save Results",accelerator="F3",command=self.onClick_File_SaveResult)
             win.bind("<F3>", self.onClick_File_SaveResult)
             mnu.add_separator()
-            mnu.add_command(label="Quit", command=self.onClick_File_Exit,accelerator="Ctrl+Q")
+            mnu.add_command(label="Quit",accelerator="Ctrl+Q", command=self.onClick_File_Exit)
 
             mnu = tk.Menu(mm, tearoff=0)
             mm.add_cascade( menu=mnu, label="Theta")
-            mnu.add_command(label="Close",accelerator="F8",)
+            mnu.add_command(label="Close",accelerator="F8",command=self.onClick_RateClose)
             win.bind("<F8>", self.onClick_RateClose)
-            mnu.add_command(label="Exact",accelerator="F9")
+            mnu.add_command(label="Exact",accelerator="F9",command=self.onClick_RateExact)
             win.bind("<F9>", self.onClick_RateExact)
-            mnu.add_command(label="Avoid",accelerator="F10")
+            mnu.add_command(label="Avoid",accelerator="F10",command=self.onClick_RateAvoid)
             win.bind("<F10>", self.onClick_RateAvoid)
             mnu.add_separator()
-            mnu.add_command(label="Run Grid Search",accelerator="F5")
+            mnu.add_command(label="Run Grid Search",accelerator="F5",command=self.onClick_GridSearch)
             win.bind("<F5>", self.onClick_GridSearch)
 
             mnu = tk.Menu(mm, tearoff=0)
             mm.add_cascade( menu=mnu, label="View")
-            mnu.add_command(label="Next",accelerator="Return")
+            mnu.add_command(label="Next",accelerator="Return",command=self.onClick_View_Next)
             win.bind("<Return>", self.onClick_View_Next)
-            mnu.add_command(label="Previous",accelerator="Shift+Return")
+            mnu.add_command(label="Previous",accelerator="Shift+Return",command=self.onClick_View_Prev)
             win.bind("<Shift Return>", self.onClick_View_Prev)
 
             return mm
@@ -196,8 +201,12 @@ class ThetaUI(BaseTunerUI):
         return
 
     def onClick_GridSearch(self, *args, **kwargs):
-        if not self.in_grid_search:
+        try:
             self.__grid_search()
+
+        except Exception as e:
+            self.on_error_update(e)
+
         return
 
     def on_before_invoke(self):
@@ -210,11 +219,17 @@ class ThetaUI(BaseTunerUI):
 
     def on_after_invoke(self,invocation):
         self.results_tree.build(invocation,under_heading="invocation",replace=True)
+        # sooooo important to have the next line
+        self.winMain.update_idletasks()
         return
 
     def on_error_update(self, e):
         try:
-            if not e is FormattedException: e = FormattedException()
+            if e is None:
+                # might be an unhandled exception
+                e = FormattedException()
+            elif not e is FormattedException:
+                e = FormattedException(self.winMain)
             self.StatusBar.error = e
         except:
             pass
@@ -245,8 +260,25 @@ class ThetaUI(BaseTunerUI):
             self.results_tree.build(res, under_heading="results", replace=True)
         return
 
-    def on_await_user(self):
-        # TODO: should probably check to see if we are already loaded first
+    def on_await_user(self, up_next=None):
+        def null_route(*args, **kwargs):
+            # Here because of the way things
+            # had to be done with openCV
+
+            # self.winMain.after(500)
+            self.winMain.deiconify()
+            return True
+
+        self._on_await_user = null_route
+
+        if not up_next is None:
+            # set this up to be called after all the screen refreshes etc
+            self.winMain.after(1000, up_next)
+
+        # so these next lines should be called exactly once
+        # self.winMain.update()
+        # self.winMain.deiconify()
+        # things go away if you do not call this mainloop thing
         self.winMain.mainloop()
         return
 
@@ -281,13 +313,6 @@ class ThetaUI(BaseTunerUI):
 
         return
 
-    # def on_control_changed(self, param, val):
-    #     '''
-    #     The value of this param just changed
-    #     '''
-    #     self.on_status_update(param.name + ":" + str(param.get_display_value()))
-    #     super().on_control_changed(param, val)
-    #     return
 
     @property
     def sampling(self):
@@ -347,4 +372,101 @@ class ThetaUI(BaseTunerUI):
         # expands width equally
         self.tuner_frame.columnconfigure(col,weight=1)
         space_controls()
+        return
+
+    def grid_search(self, carousel, headless=False,delay=500):
+        '''
+        This should only be called from userland code.
+        Conducts a grid search across the trackbar configuration, and saves
+        aggregated results to file. When not in headless mode, you can
+        save images and results for individual files as they are displayed.
+        carousel:   A fully initialize Carousel, use the carousel_from_() helper functions to gin one up.
+        headless:   When doing large searches, set this to True to suppress the display.
+        delay   :   When not in headless mode, acts like begin()
+        '''
+        try:
+            self.headless = headless
+            self.gs_delay = delay
+
+            # enter the carousel
+            self.ctx.enter_carousel(carousel, self.headless)
+            # do a show, and it looks like modal show is all there is
+            self.on_await_user(up_next=self.__grid_search)
+
+
+        except:
+            self.on_error_update(None)
+        finally:
+            pass
+        return
+
+    def __grid_search(self):
+        '''
+        only called internally
+        '''
+        def on_wait_for_gs(*args, **kwargs):
+
+            if not self.headless:
+
+                self.winMain.update()
+                self.winMain.update_idletasks()
+                self.winMain.after(self.gs_delay)
+                self.winMain.deiconify()
+
+
+            return not self.__grid_search_cancelled
+
+        def on_keypress(e, *args, **kwargs):
+            # print(**args)
+            # print(**kwargs)
+            if e.keysym == 'Escape':
+                self.__grid_search_cancelled = True
+
+            return
+        if not self.in_grid_search:
+            boo =None
+            funcid = None
+            try:
+                self.status = "In grid search..."
+                self.in_grid_search = True
+                self.__grid_search_cancelled = False
+                boo = self.on_await_user
+                self.on_await_user = on_wait_for_gs
+
+                # grab keypress looking specifically for 27/Escape
+                funcid = self.winMain.bind_all('<KeyPress>',on_keypress)
+
+                ret = self.ctx.grid_search()
+
+            except Exception as e:
+                self.on_error_update(e)
+            finally:
+                self.on_await_user = boo
+                self.winMain.unbind('<KeyPress>',funcid)
+                self.in_grid_search = False
+                if self.__grid_search_cancelled:
+                    self.status = "Grid search cancelled..."
+                else:
+                    self.status = "Grid search complete."
+                self.__grid_search_cancelled = False
+        return
+
+    def begin(self, carousel=None, delay=0):
+        '''
+        Display the Tuner window.
+        carousel: A fully initialize Carousel, use the carousel_from_() helper functions to gin one up. See readme for more information.
+        delay:    Milliseconds to show each image in the carousel until interrupted by the keyboard. 0 for indefinite.
+        '''
+        try:
+            self.headless = False
+            # enter the carousel
+            self.ctx.enter_carousel(carousel, self.headless)
+            # turn over control to the message pump
+            self.on_await_user()
+
+            # hang out - see wht the user wants to do :)
+        except Exception as e:
+            self.on_error_update(e)
+        finally:
+            pass
         return

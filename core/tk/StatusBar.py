@@ -124,25 +124,35 @@ class StatusBar(UserDict):
             col += 1
             this = {}
             # no bound var for this
-            # this["var"] = tk.StringVar(self.__bar)
-            this["label"] = l = tk.Label(self.__bar
-                                        ,justify = "center" #text within
-                                        ,border=2
-                                        # ,bd=1
-                                        ,relief=tk.RIDGE
-                                        ,background= "silver"
-                                        ,padx=2
-                                        ,pady=2
-                                        ,width=5
-                                        # ,textvariable=this["var"]
-                                        )
+            l = tk.Label(self.__bar
+                            ,justify = "center" #text within
+                            ,relief=tk.RIDGE
+                            ,background= "silver"
+                            ,padx=1
+                            ,pady=1
+                            ,width=5
+                            )
+            l.columnconfigure(0,weight=1)
+            l.columnconfigure(1,weight=0)
+            l.columnconfigure(2,weight=1)
+
+            this["label"] = l1 = tk.Label(l,justify="center"
+                                            , relief=tk.FLAT
+                                            , background="black"
+                                            , border=2,width =2,padx=2,pady=1
+                                            )
+            l1.grid(in_=l,row=0,column=1)
+
             # add this label in to the bar
             l.grid(in_ = bar, row=0,column=col,sticky="w")
             # this label will not expand
             bar.columnconfigure(col,weight=0)
             super().__setitem__("error",this)
-            self.error_label = l
+            # This is the thing that we will be
+            # switching colors around on
+            self.error_label = l1
             l.bind("<Button-1>",self.onclick_error)
+            l1.bind("<Button-1>",self.onclick_error)
         else:
             self.error_label = None
         return

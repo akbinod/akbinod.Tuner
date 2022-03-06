@@ -199,3 +199,60 @@ class TunerUI(BaseTunerUI):
         self.on_status_update(param.name + ":" + str(param.get_display_value()))
         super().on_control_changed(param, val)
         return
+
+    def grid_search(self, carousel, headless=False,delay=500):
+        '''
+        This should only be called from userland code.
+        Conducts a grid search across the trackbar configuration, and saves
+        aggregated results to file. When not in headless mode, you can
+        save images and results for individual files as they are displayed.
+        carousel:   A fully initialize Carousel, use the carousel_from_() helper functions to gin one up.
+        headless:   When doing large searches, set this to True to suppress the display.
+        delay   :   When not in headless mode, acts like begin()
+        esc_cancels_carousel: When you submit a carousel, does the 'Esc' key get you:
+                            -- out of tuning the current image only (False), or
+                            -- out of the entire carousel as well (True)
+        '''
+        self.headless = headless
+        # old_delay = self.delay
+        self.delay = delay
+        try:
+            # enter the carousel
+            self.ctx.enter_carousel(carousel, self.headless)
+            self.__grid_search()
+            self.on_await_user()
+        finally:
+            # self.delay = old_delay
+            pass
+        return
+
+    def __grid_search(self):
+        # only called internally
+        try:
+            self.in_grid_search = True
+            ret = self.ctx.grid_search()
+        finally:
+            self.in_grid_search = False
+            self.on_status_update("Grid search complete.")
+        return
+    def begin(self, carousel=None, delay=0):
+        '''
+        Display the Tuner window.
+        carousel: A fully initialize Carousel, use the carousel_from_() helper functions to gin one up. See readme for more information.
+        delay:    Milliseconds to show each image in the carousel until interrupted by the keyboard. 0 for indefinite.
+        '''
+        try:
+            self.headless = False
+            self.delay = delay
+            # enter the carousel
+            self.ctx.enter_carousel(carousel, self.headless)
+            # turn over control to the message pump
+            self.on_await_user()
+            # when we're back, it's time to leave
+        except Exception as e:
+            self.on_error_update(e)
+        finally:
+            # todo: do we need to do this?
+            # will this be a problem for the tk gui?
+            self.ctx.exit_carousel()
+        return
