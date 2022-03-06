@@ -5,14 +5,17 @@ from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
+from core.ParamCheck import ParamCheck
 from core.ParamControl import ParamControl
+from core.ParamCombo import ParamCombo
+from core.ParamSpin import ParamSpin
 
 from core.tk.Panes import Panes
 from core.tk.jsonToTtkTree import jsonToTtkTree
 from core.tk.StatusBar import StatusBar
 from core.tk.Canvas import Canvas
 from core.CodeTimer import CodeTimer
-from core.ParamCombo import ParamCombo
+
 
 import numpy as np
 
@@ -300,17 +303,22 @@ class ThetaUI(BaseTunerUI):
             cc = tk.Frame(self.tuner_frame,border=2, padx=2,pady=2,relief=tk.FLAT)
             cc.rowconfigure(0,weight=0)
             cc.columnconfigure(0,weight = 0)
-            cc.columnconfigure(1,weight = 1)
-
-            l = tk.Label(cc,justify="right")
-            l.configure(text=param.name)
-            l.grid(in_=cc,row=0,column=0,sticky="nw")
-            c.grid(in_=cc,row=0,column=1,sticky="nwe")
+            if isinstance(c,ttk.Checkbutton):
+                # this thing comes with its own label
+                cc.columnconfigure(0,weight = 1)
+                c.grid(in_=cc,row=0,column=0,sticky="nwe")
+            else:
+                cc.columnconfigure(1,weight = 1)
+                l = tk.Label(cc,justify="right")
+                l.configure(text=param.name)
+                l.grid(in_=cc,row=0,column=0,sticky="nw")
+                c.grid(in_=cc,row=0,column=1,sticky="nwe")
             return cc
         def space_controls():
             # this might be all it takes :)
             self.tuner_pane.configure()
             return
+
         if isinstance(param, (dict_param,list_param)):
             # build list
             c = ttk.Combobox(None,values=param.display_list)
@@ -318,13 +326,14 @@ class ThetaUI(BaseTunerUI):
 
         elif isinstance(param, (bool_param)):
             # build checkbox
-            c = tk.Checkbutton(None)
-            c.configure(variable=param.value,justify="left")
+            c = ttk.Checkbutton(None,text=param.name,offvalue=0,onvalue=1)
+            self.controlrefs[param.name] = ParamCheck(c,param)
 
         else:
             # build spinbox
-            c = tk.Spinbox(None,justify="right")
-            c.configure(variable=param.value,justify="left")
+            c = ttk.Spinbox(None,justify="left",values=list(param.range),wrap=False)
+            self.controlrefs[param.name] = ParamSpin(c,param)
+
 
         # only add the actual control in here - not the control container
         self.controls.append(c)
