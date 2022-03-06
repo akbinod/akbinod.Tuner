@@ -56,7 +56,6 @@ class BaseTunerUI:
         # Must override.
         raise NotImplementedError()
 
-
     def __del__(self):
         # Must override.
         raise NotImplementedError()
@@ -109,6 +108,14 @@ class BaseTunerUI:
         clear status, error indicators etc
         '''
         return
+
+    def on_after_invoke(self,invocation):
+        '''
+        Called from the tuner. Override this if you want to
+        do some comprehensive post processing results.
+        '''
+        return
+
     def on_error_update(self, error):
         '''
         For downstream objects  to communicate errors.

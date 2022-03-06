@@ -205,6 +205,10 @@ class ThetaUI(BaseTunerUI):
         self.status = ""
         return
 
+    def on_after_invoke(self,invocation):
+        self.results_tree.build(invocation,under_heading="invocation",replace=True)
+        return
+
     def on_error_update(self, e):
         try:
             if not e is FormattedException: e = FormattedException()
@@ -309,10 +313,6 @@ class ThetaUI(BaseTunerUI):
             return
         if isinstance(param, (dict_param,list_param)):
             # build list
-            # c = tk.Listbox(master = self.tuner_frame,name=param.name)
-            # c.insert(tk.END,param.display_list)
-            # c.configure(listvariable=param.data_list,justify="left", background="silver", relief=tk.RIDGE)
-
             c = ttk.Combobox(None,values=param.display_list)
             self.controlrefs[param.name] = ParamCombo(c,param)
 

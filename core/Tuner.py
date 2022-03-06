@@ -371,6 +371,7 @@ class Tuner:
         # for saving later
         self.invocation_counter += 1
         if not ct is None: self.invocation.duration = str(ct)
+        self.ui.on_after_invoke(self.invocation)
         return
 
     def tag(self, obs:Tags):
