@@ -9,11 +9,12 @@ from PIL import Image, ImageTk
 import math
 
 from core.tk.StatusBar import StatusBar
-
+from core.BaseTunerUI import BaseTunerUI
 
 
 class Canvas():
-    def __init__(self,master, sb:StatusBar, status_key) -> None:
+    # def __init__(self,master, sb:StatusBar, status_key) -> None:
+    def __init__(self,master, ui:BaseTunerUI) -> None:
         # assume there is just the one pic for now
         self.canvas:tk.Canvas = tk.Canvas(master=master
                 ,background="black",relief=tk.FLAT
@@ -22,9 +23,10 @@ class Canvas():
         self.canvas.bind('<Configure>',self.on_canvas_resized)
         self.resiz=""
         self.images = {}
-        self.sb = sb
-        self.status_key = status_key
+        # self.sb = sb
+        # self.status_key = status_key
         self.master = master
+        self.ui = ui
         solvers.options['show_progress'] = False
         return
     def on_canvas_resized(self, e, *args, **kwargs):
@@ -139,6 +141,11 @@ class Canvas():
             w = image.shape[1]
             h = image.shape[0]
 
+            # note we've added the relationship
+            # between width and height twice here
+            # This is to ensure "== 0" instead of
+            # "<= 0 or >= 0". It works.
+
             A =matrix( [
                  [1.0,0.0,-1.0, 0.0, -1.0,  h/w]
                 ,[0.0,1.0, 0.0,-1.0,  w/h, -1.0]
@@ -154,7 +161,8 @@ class Canvas():
                 self.resize_mode = "BAD"
             else:
                 self.resize_mode = "SAMPL" if nw <= w else "INTER"
-            if self.sb is not None: self.sb[self.status_key] = self.resize_mode
+            # if self.sb is not None: self.sb[self.status_key] = self.resize_mode
+            self.ui.sampling = self.resize_mode
 
             # use cv to resize
             image = cv2.resize(image

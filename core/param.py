@@ -1,6 +1,6 @@
 import cv2
 
-class param:
+class param():
     '''
     This class should be left as is.
 
@@ -131,10 +131,26 @@ class list_param(param):
         if not display_list is None:
             if len(data_list) != len(display_list):
                 raise ValueError("Display list must match data list in length.")
-
+        else:
+            # let's create one
+            self.display_list = []
+            self.guess_display_list()
         self.__return_index = return_index
         super().__init__(ui, name, max=max, min=0, default=default)
-
+    def guess_display_list(self):
+        for li in self.data_list:
+            val = "<unknown>"
+            if isinstance(li,dict):
+                # just add the first key in there - the user will soon get the drift
+                if len(li.keys()):
+                    l = list(li.keys())
+                    if len(l) > 0:val = li[l[0]]
+            elif isinstance(li,list):
+                val = li[0]
+            else:
+                val = str(li)
+            self.display_list.append(val)
+        return
     def get_value(self):
         ret = super().get_value()
         if not self.__return_index:

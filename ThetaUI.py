@@ -5,12 +5,14 @@ from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
+from core.ParamControl import ParamControl
 
 from core.tk.Panes import Panes
 from core.tk.jsonToTtkTree import jsonToTtkTree
 from core.tk.StatusBar import StatusBar
 from core.tk.Canvas import Canvas
 from core.CodeTimer import CodeTimer
+from core.ParamCombo import ParamCombo
 
 import numpy as np
 
@@ -106,10 +108,18 @@ class ThetaUI(BaseTunerUI):
         self.main_menu = config_menus(self.winMain)
 
         # get a 3 paned window going
-        pns = Panes(self.winMain,["results", "image", "tuner"]).build()
+        d = Panes.get_default_3_part_def()
+        d["left"]["name"] = "results"
+        d["right_top"]["name"] = "image"
+        d["right_bottom"]["name"] = "tuner"
+        d["right_bottom"]["stretch"] = "never"
+        pns = Panes(self.winMain,d).build()
+        # we're going to do things with this guy
+        self.tuner_pane:tk.PanedWindow  =pns["tuner"]
         self.results_frame:tk.Frame = pns['results']
         self.image_frame:tk.Frame = pns['image']
         self.tuner_frame:tk.Frame = pns['tuner']
+
         # configure its grid
         self.controls = []
         self.control_columns = 3
@@ -122,11 +132,12 @@ class ThetaUI(BaseTunerUI):
         self.results_tree = jsonToTtkTree(self.results_frame, "results",style=res_style)
 
         # this is where we will put images
-        self.canvas = Canvas(self.image_frame, self.StatusBar, "sampling")
-
+        # self.canvas = Canvas(self.image_frame, self.StatusBar, "sampling")
+        self.canvas = Canvas(self.image_frame, self)
         # style = ttk.Style()
         # style.theme_use("alt")
 
+        self.controlrefs = {}
         #This is not the place to do a blocking show()
         return
 
@@ -249,38 +260,17 @@ class ThetaUI(BaseTunerUI):
         '''
         Create a control that represents a tracked param.
         '''
-        if isinstance(param, (dict_param,list_param)):
-            # build list
-            c = tk.Listbox(master = self.tuner_frame,justify="left",bg="silver")
-            c.configure(listvariable=param.display_list)
-        elif isinstance(param, (bool_param)):
-            # build checkbox
-            c = tk.Checkbutton(master=self.tuner_frame, justify="left",bg="silver")
-        else:
-            # build spinbox
-            c = tk.Spinbox(master=self.tuner_frame,justify="right",bg="silver")
-        i = len(self.controls)
-        row = i // self.control_columns
-        col = i % self.control_columns
-        c.grid(in_=self.tuner_frame,column=col,row=row,sticky="nwe")
-        self.tuner_frame.rowconfigure(row,weight=1)
-        self.controls.append(c)
+        self.add_control(param)
 
-        # param.trackbar = cv2.createTrackbar(param.name
-        #                                     ,self.window
-        #                                     ,param.default
-        #                                     ,param.max
-        #                                     ,param.set_value)
-        # cv2.setTrackbarMin(param.name, self.window,param.min)
+        return
 
     def on_control_update(self,param,val):
         '''
         Update a control based on value set in code.
         '''
-        # try:
-        #     cv2.setTrackbarPos(param.name, self.window, val)
-        # except Exception as e:
-        #     self.on_error_update(e)
+        if param.name in self.controlrefs:
+            c:ParamControl = self.controlrefs[param.name]
+            c.value = val
 
         return
 
@@ -301,3 +291,51 @@ class ThetaUI(BaseTunerUI):
         self.StatusBar["sampling"] = val
         return
 
+    def add_control(self, param):
+        def wrap_control(c):
+            cc = tk.Frame(self.tuner_frame,border=2, padx=2,pady=2,relief=tk.FLAT)
+            cc.rowconfigure(0,weight=0)
+            cc.columnconfigure(0,weight = 0)
+            cc.columnconfigure(1,weight = 1)
+
+            l = tk.Label(cc,justify="right")
+            l.configure(text=param.name)
+            l.grid(in_=cc,row=0,column=0,sticky="nw")
+            c.grid(in_=cc,row=0,column=1,sticky="nwe")
+            return cc
+        def space_controls():
+            # this might be all it takes :)
+            self.tuner_pane.configure()
+            return
+        if isinstance(param, (dict_param,list_param)):
+            # build list
+            # c = tk.Listbox(master = self.tuner_frame,name=param.name)
+            # c.insert(tk.END,param.display_list)
+            # c.configure(listvariable=param.data_list,justify="left", background="silver", relief=tk.RIDGE)
+
+            c = ttk.Combobox(None,values=param.display_list)
+            self.controlrefs[param.name] = ParamCombo(c,param)
+
+        elif isinstance(param, (bool_param)):
+            # build checkbox
+            c = tk.Checkbutton(None)
+            c.configure(variable=param.value,justify="left")
+
+        else:
+            # build spinbox
+            c = tk.Spinbox(None,justify="right")
+            c.configure(variable=param.value,justify="left")
+
+        # only add the actual control in here - not the control container
+        self.controls.append(c)
+        wc = wrap_control(c)
+        i = len(self.controls) - 1
+        row = i // self.control_columns
+        col = i % self.control_columns
+        wc.grid(in_=self.tuner_frame,column=col,row=row,sticky="nwe")
+        # the row does not grow in height
+        self.tuner_frame.rowconfigure(row,weight=0)
+        # expands width equally
+        self.tuner_frame.columnconfigure(col,weight=1)
+        space_controls()
+        return

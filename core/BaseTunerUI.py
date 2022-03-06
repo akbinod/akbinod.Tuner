@@ -348,7 +348,19 @@ class BaseTunerUI:
     def func_name(self):
         return self.ctx.func_name
 
+    @property
+    def sampling(self):
+        '''
+        For the rich UI
+        '''
+        return
 
+    @sampling.setter
+    def sampling(self,val):
+        '''
+        For the rich UI
+        '''
+        return
 
 
 

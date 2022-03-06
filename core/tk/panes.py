@@ -2,19 +2,26 @@ import tkinter as tk
 from tkinter import ttk
 
 class Panes():
-    def __init__(self, win:tk.Tk, names:list) -> None:
-        self.win = win
-        if names is None: names = []
-        if len(names) < 3 or len(names) > 4: names = ["left", "right_top", "right_bottom"]
-        if len(names) == 3:
-            self.__panes_map = {"left":names[0], "right_top":names[1], "right_bottom":names[2]}
-        else:
-            self.__panes_map = {"left_top":names[0], "left_bottom": names[1], "right_top":names[2], "right_bottom":names[3]}
+    def __init__(self, win:tk.Tk, panes_def:dict) -> None:
 
+        self.win = win
+        if panes_def is None: panes_def = {}
+        # if things are out of bounds - get a default def
+        if len(panes_def) < 3 or len(panes_def) > 4:
+            panes_def = get_default_3_part_def()
+
+        if len(panes_def) == 3:
+            if not ("left" in panes_def and "right_top" in panes_def and "right_bottom" in panes_def):
+                panes_def = get_default_3_part_def()
+        else:
+            if not ("left_top" in panes_def and "left_bottom" in panes_def and "right_top" in panes_def and "right_bottom" in panes_def):
+                panes_def = get_default_4_part_def()
+
+        self.__panes_def = panes_def
         return
 
     def build(self):
-        if len(self.__panes_map.keys()) == 3:
+        if len(self.__panes_def.keys()) == 3:
             self.__panes = self.__add_3panes(False)
         else:
             pass
@@ -37,23 +44,28 @@ class Panes():
         # take up all the real estate on the window
         pn.grid(in_ = self.win,row= 0, column=0,sticky="nswe")
 
-        k = self.__panes_map["left"] if "left" in self.__panes_map else "left"
+
+        k = self.__panes_def["left"]["name"]
+        st = self.__panes_def["left"]["stretch"]
         fr = frames[k] = tk.Frame(master=pn)
-        pn.add(fr)
+        pn.add(fr,stretch=st)
 
         right_child= tk.PanedWindow(master = pn,orient="vertical",sashwidth=sasshwidth, sashrelief=sashrelief)
         pn.add(right_child)
 
-        k = self.__panes_map["right_top"] if "right_top" in self.__panes_map else "right_top"
-        fr = frames[k] = tk.Frame(master=right_child)
-        right_child.add(fr)
 
-        k = self.__panes_map["right_bottom"] if "right_bottom" in self.__panes_map else "right_bottom"
+        k = self.__panes_def["right_top"]["name"]
+        st = self.__panes_def["right_top"]["stretch"]
         fr = frames[k] = tk.Frame(master=right_child)
-        right_child.add(fr)
+        right_child.add(fr,stretch=st)
 
-        right_child.rowconfigure(0,weight=8)
-        right_child.rowconfigure(1,weight=2)
+        k = self.__panes_def["right_bottom"]["name"]
+        st = self.__panes_def["right_bottom"]["stretch"]
+        fr = frames[k] = tk.Frame(master=right_child)
+        right_child.add(fr,stretch=st)
+
+        # right_child.rowconfigure(0,weight=8)
+        # right_child.rowconfigure(1,weight=2)
 
         for key in frames:
             f:tk.Frame = frames[key]
@@ -92,21 +104,21 @@ class Panes():
 
 
         # within the top
-        k = self.__panes_map["top_left"] if "top_left" in self.__panes_map else "top_left"
+        k = self.__panes_def["top_left"] if "top_left" in self.__panes_def else "top_left"
         fr = frames[k] = tk.Frame(master=top_child)
         top_child.add(fr)
 
 
-        k = self.__panes_map["top_right"] if "top_right" in self.__panes_map else "top_right"
+        k = self.__panes_def["top_right"] if "top_right" in self.__panes_def else "top_right"
         fr = frames[k] = tk.Frame(master=top_child)
         top_child.add(fr)
 
         # within the bottom
-        k = self.__panes_map["bottom_left"] if "bottom_left" in self.__panes_map else "bottom_left"
+        k = self.__panes_def["bottom_left"] if "bottom_left" in self.__panes_def else "bottom_left"
         fr = frames[k] = tk.Frame(master=bot_child)
         bot_child.add(fr)
 
-        k = self.__panes_map["bottom_right"] if "bottom_right" in self.__panes_map else "bottom_right"
+        k = self.__panes_def["bottom_right"] if "bottom_right" in self.__panes_def else "bottom_right"
         fr = frames[k] = tk.Frame(master=bot_child)
         bot_child.add(fr)
 
@@ -123,3 +135,20 @@ class Panes():
 
 
         return frames
+
+    @staticmethod
+    def get_default_3_part_def():
+        d = {   "left":{"name":"left", "stretch":"always"}
+                ,"right_top":{"name":"right_top", "stretch":"always"}
+                ,"right_bottom":{"name":"right_bottom", "stretch":"always"}
+                }
+        return d
+
+    @staticmethod
+    def get_default_4_part_def():
+        d = {   "left_top":{"name":"left_top", "stretch":"always"}
+                ,"left_bottom":{"name":"left_bottom", "stretch":"always"}
+                ,"right_top":{"name":"right_top", "stretch":"always"}
+                ,"right_bottom":{"name":"right_bottom", "stretch":"always"}
+            }
+        return d
