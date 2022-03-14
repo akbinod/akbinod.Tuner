@@ -48,7 +48,7 @@ class ImageFrameGenerator():
                     else:
                         im = cv2.imread(f)
                     if self.normalize:
-                        im /= 255
+                        im /= 255.
                     # add this  to the files
                     frame.files.append(f)
                     # create a title based on the name - the last file wins

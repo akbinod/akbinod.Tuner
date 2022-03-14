@@ -1,10 +1,11 @@
 
 import tkinter as tk
 
-from tkinter import ttk
+from tkinter import Variable, ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
+from typing_extensions import IntVar
 
 from core.ParamCheck import ParamCheck
 from core.ParamControl import ParamControl
@@ -31,10 +32,13 @@ from core.param import param,list_param,bool_param,dict_param
 
 class ThetaUI(BaseTunerUI):
     def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None):
+
         super().__init__(func_main, func_downstream=func_downstream, pinned_params=pinned_params, parms_json=parms_json)
         self.__grid_search_cancelled = False
+
         # default miliseconds to wait in grid search
-        self.gs_delay = 3000
+        self.gs_delay = 500
+
     def build(self):
         def config_menus(win):
             # sets up a menu system
@@ -66,9 +70,19 @@ class ThetaUI(BaseTunerUI):
             win.bind("<F9>", self.onClick_RateExact)
             mnu.add_command(label="Avoid",accelerator="F10",command=self.onClick_RateAvoid)
             win.bind("<F10>", self.onClick_RateAvoid)
-            mnu.add_separator()
-            mnu.add_command(label="Run Grid Search",accelerator="F5",command=self.onClick_GridSearch)
+
+
+
+            mnu = tk.Menu(mm, tearoff=0)
+            mm.add_cascade( menu=mnu, label="Grid Search")
+            mnu.add_command(label="Run",accelerator="F5",command=self.onClick_GridSearch)
             win.bind("<F5>", self.onClick_GridSearch)
+            mnu.add_separator()
+            self.gs_delay_var = tk.IntVar(self.winMain,500,"gs_delay")
+            mnu.add_radiobutton(label="500 ms delay", var=self.gs_delay_var, value=500, command=self.set_gs_delay) #
+            mnu.add_radiobutton(label="1 second", var=self.gs_delay_var, value=1000, command=self.set_gs_delay)
+            mnu.add_radiobutton(label="2 seconds", var=self.gs_delay_var, value=2000, command=self.set_gs_delay)
+            mnu.add_radiobutton(label="3 seconds", var=self.gs_delay_var, value=3000, command=self.set_gs_delay)
 
             mnu = tk.Menu(mm, tearoff=0)
             mm.add_cascade( menu=mnu, label="View")
@@ -80,7 +94,11 @@ class ThetaUI(BaseTunerUI):
             return mm
         def config_status(win):
             sdef = {
-                    "frame":{
+                    "file":{
+                        "justify":"left"
+                        ,"minwidth":20
+                    }
+                    ,"frame":{
                         "justify":"right"
                         ,"minwidth":10
                     }
@@ -221,15 +239,13 @@ class ThetaUI(BaseTunerUI):
         self.results_tree.build(invocation,under_heading="invocation",replace=True)
         # sooooo important to have the next line
         self.winMain.update_idletasks()
+        self.winMain.bell()
         return
 
     def on_error_update(self, e):
         try:
-            if e is None:
-                # might be an unhandled exception
-                e = FormattedException()
-            elif not e is FormattedException:
-                e = FormattedException(self.winMain)
+
+            e = FormattedException(self.winMain)
             self.StatusBar.error = e
         except:
             pass
@@ -286,9 +302,10 @@ class ThetaUI(BaseTunerUI):
         super().on_frame_changed(new_frame)
 
         # do UI stuff
-        title = f"{self.window}: {new_frame.title}"
+        # title = f"{self.window}"
         try:
-            self.winMain.title(title)
+            # self.winMain.title(title)
+            self.StatusBar["file"] = new_frame.title
             self.StatusBar["frame"] = f"{new_frame.index} of {new_frame.tray_length}"
         except:
             pass
@@ -400,6 +417,11 @@ class ThetaUI(BaseTunerUI):
             pass
         return
 
+    def set_gs_delay(self, *args, **kwargs):
+        # user selected a different wait time
+        self.gs_delay = self.gs_delay_var.get()
+        return
+
     def __grid_search(self):
         '''
         only called internally
@@ -417,8 +439,7 @@ class ThetaUI(BaseTunerUI):
             return not self.__grid_search_cancelled
 
         def on_keypress(e, *args, **kwargs):
-            # print(**args)
-            # print(**kwargs)
+
             if e.keysym == 'Escape':
                 self.__grid_search_cancelled = True
 

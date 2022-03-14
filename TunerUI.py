@@ -53,15 +53,8 @@ class TunerUI(BaseTunerUI):
 
     def on_error_update(self, e):
         try:
-            if e is FormattedException:
-                # we got an exception handed to us
-                val = e.error
-            else:
-                # we got something
-                es = FormattedException()
-                val = e.error
-
-            cv2.displayStatusBar(self.ctx.func_name,val,60_000)
+            es = FormattedException(None)
+            cv2.displayStatusBar(self.ctx.func_name,es.Error,60_000)
         except:
             pass
         return

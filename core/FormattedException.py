@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 class FormattedException():
-    def __init__(self, *, master:tk.Tk=None, reverse_stack=True) -> None:
+    def __init__(self, master:tk.Tk=None, *, reverse_stack=True) -> None:
         '''
         Instantiating this class with the default constructor is enough
         to show a decent exception window.
@@ -30,7 +30,7 @@ class FormattedException():
             self.__build_exc()
             self.__build_ui()
 
-            if self.master is None:
+            if self.master is None or self.master.deiconify() == '':
                 # do an immediate show
                 # this happens when there
                 # are errors in initialization
@@ -97,12 +97,21 @@ class FormattedException():
         return
 
     def __build_ui(self):
-        if self.master is None:
+        # if self.master is None:
+        if self.master is None or self.master.deiconify() == '':
+            # main window is not visible yet
             self.win = tk.Tk()
             # TODO: put in a null menu someday
         else:
             # do this as a child window
+
             self.win = tk.Toplevel(master=self.master)
+            try:
+                self.win.tk.call("::tk::unsupported::MacWindowStyle"
+                                    , "style", self.win._w, "utility")
+                # Besides utility, other useful appearance styles include floating, plain, and modal.
+            except:
+                pass
             # Since this is a child window, do not overwrite
             # the parent's menus
 
