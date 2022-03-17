@@ -11,6 +11,7 @@ from core.ParamCheck import ParamCheck
 from core.ParamControl import ParamControl
 from core.ParamCombo import ParamCombo
 from core.ParamSpin import ParamSpin
+from core.tk.WaitKeyEmulator import WaitKeyEmulator
 
 from core.tk.Panes import Panes
 from core.tk.jsonToTtkTree import jsonToTtkTree
@@ -34,7 +35,7 @@ class ThetaUI(BaseTunerUI):
     def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None):
 
         super().__init__(func_main, func_downstream=func_downstream, pinned_params=pinned_params, parms_json=parms_json)
-        self.__grid_search_cancelled = False
+        # self.__grid_search_cancelled = False
 
         # default miliseconds to wait in grid search
         self.gs_delay = 500
@@ -426,50 +427,26 @@ class ThetaUI(BaseTunerUI):
         '''
         only called internally
         '''
-        def on_wait_for_gs(*args, **kwargs):
 
-            if not self.headless:
+        if self.in_grid_search: return
 
-                self.winMain.update()
-                self.winMain.update_idletasks()
-                self.winMain.after(self.gs_delay)
-                self.winMain.deiconify()
+        kp = WaitKeyEmulator(self.winMain, func=self.on_await_user, delay=self.gs_delay)
+        try:
+            self.status = "In grid search..."
+            self.in_grid_search = True
+            self.on_await_user = kp.sink
+            ret = self.ctx.grid_search()
 
+        except Exception as e:
+            self.on_error_update(e)
+        finally:
+            self.in_grid_search = False
+            if kp.value == False:
+                self.status = "Grid search cancelled..."
+            else:
+                self.status = "Grid search complete."
+            self.on_await_user = kp.release()
 
-            return not self.__grid_search_cancelled
-
-        def on_keypress(e, *args, **kwargs):
-
-            if e.keysym == 'Escape':
-                self.__grid_search_cancelled = True
-
-            return
-        if not self.in_grid_search:
-            boo =None
-            funcid = None
-            try:
-                self.status = "In grid search..."
-                self.in_grid_search = True
-                self.__grid_search_cancelled = False
-                boo = self.on_await_user
-                self.on_await_user = on_wait_for_gs
-
-                # grab keypress looking specifically for 27/Escape
-                funcid = self.winMain.bind_all('<KeyPress>',on_keypress)
-
-                ret = self.ctx.grid_search()
-
-            except Exception as e:
-                self.on_error_update(e)
-            finally:
-                self.on_await_user = boo
-                self.winMain.unbind('<KeyPress>',funcid)
-                self.in_grid_search = False
-                if self.__grid_search_cancelled:
-                    self.status = "Grid search cancelled..."
-                else:
-                    self.status = "Grid search complete."
-                self.__grid_search_cancelled = False
         return
 
     def begin(self, carousel=None, delay=0):
@@ -491,3 +468,16 @@ class ThetaUI(BaseTunerUI):
         finally:
             pass
         return
+
+    def inspect(self, image,comment,delay=None):
+        '''
+        When you want to show something and pause before the next iteration.
+        delay is not used - the setting for grid search pauses is used
+        '''
+        self.image = image
+        self.status = comment
+        if delay is None: delay = self.gs_delay
+        insp = WaitKeyEmulator(self.winMain,delay=delay)
+
+        return insp.null_route()
+

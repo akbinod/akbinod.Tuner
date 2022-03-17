@@ -7,7 +7,10 @@ from core.ParamControl import ParamControl
 class ParamCheck(ParamControl):
     def __init__(self, c:ttk.Checkbutton, p:param) -> None:
         super().__init__(p)
-        self.var = tk.IntVar(master=c,name=p.name,value=0)
+        v = p.get_value()
+        if isinstance(v,bool):
+            v = 0 if v == False else 1
+        self.var = tk.IntVar(master=c,name=p.name,value=v)
         self.c:ttk.Checkbutton = c
         c.configure(command=self.onSelectionChanged,variable=self.var)
 
@@ -18,7 +21,10 @@ class ParamCheck(ParamControl):
         return
     @property
     def value(self):
-        return self.var.get()
+        v = self.var.get()
+        if isinstance(v,int):
+            v = False if v == 0 else True
+        return v
 
     @value.setter
     def value(self,val):
@@ -27,6 +33,8 @@ class ParamCheck(ParamControl):
         '''
         try:
             # turn off event handling?
+            if isinstance(val,bool):
+                val = 0 if val == False else 1
             self.var.set(val)
         except Exception as e:
             pass

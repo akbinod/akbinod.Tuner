@@ -83,20 +83,20 @@ class TunerUI(BaseTunerUI):
             pass
         return
 
-    def on_await_user(self):
+    def on_await_user(self, delay=None):
         '''
         Show results and wait for user input for next action. This is
         a GUI callback expected by the TuningContext
         '''
         # can only "show" in the context of some tuner
         if self.ctx is None: return True
-
+        if delay is None: delay = self.delay
         # And now we wait
         while(not self.headless):
             # Wait forever (when delay == 0)
             # for a keypress.
             # This is skipped when in headless mode.
-            k = cv2.waitKeyEx(self.delay) #& 0xFF
+            k = cv2.waitKeyEx(delay) #& 0xFF
 
             if k == 122:
                 # F1 pressed

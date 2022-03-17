@@ -56,11 +56,6 @@ class BaseTunerUI:
         # Must override.
         raise NotImplementedError()
 
-    def __del__(self):
-        # Must override.
-        raise NotImplementedError()
-
-
     def __contains__(self, key):
         # if there's an arg for it,
         # there's a property on this class
@@ -158,7 +153,7 @@ class BaseTunerUI:
         # Must override.
         raise NotImplementedError()
 
-    def on_await_user(self):
+    def on_await_user(self, delay=None):
         '''
         Show results and wait for user input for next action. This is
         a GUI callback expected by the TuningContext
@@ -243,6 +238,14 @@ class BaseTunerUI:
 
         return Carousel.from_video(self.ctx, params,video,gs)
 
+    def inspect(self, image,status,delay=0):
+        '''
+        When you want to show something and pause before the next iteration.
+        '''
+        self.image = image
+        self.on_status_update(status)
+        self.on_await_user()
+        return
     @property
     def args(self):
         return self._parms.theta
