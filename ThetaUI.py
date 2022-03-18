@@ -92,6 +92,7 @@ class ThetaUI(BaseTunerUI):
             mnu.add_command(label="Previous",accelerator="Shift+Return",command=self.onClick_View_Prev)
             win.bind("<Shift Return>", self.onClick_View_Prev)
 
+
             return mm
         def config_status(win):
             sdef = {
@@ -160,7 +161,7 @@ class ThetaUI(BaseTunerUI):
 
         # this is where we will put images
         # self.canvas = Canvas(self.image_frame, self.StatusBar, "sampling")
-        self.canvas = Canvas(self.image_frame, self)
+        self.canvas = Canvas(self.image_frame, self, ThetaUI.max_display_images)
         # style = ttk.Style()
         # style.theme_use("alt")
 
@@ -260,21 +261,18 @@ class ThetaUI(BaseTunerUI):
         self.StatusBar["status"] = status
         return
 
-    def on_show_main(self, img):
-        if not self.headless:
-            self.canvas.render("main",img)
+    def on_show_main(self, img, arg_hash):
+        if not self.headless: self.canvas.render(img, arg_hash + "_m")
 
         return
 
-    def on_show_downstream(self,img):
-        if not self.headless:
-            self.canvas.render("downstream",img)
-            pass
+    def on_show_downstream(self,img, arg_hash):
+        if not self.headless: self.canvas.render(img, arg_hash + "_d")
+
         return
 
     def on_show_results(self, res):
-        if not self.headless:
-            self.results_tree.build(res, under_heading="results", replace=True)
+        if not self.headless: self.results_tree.build(res, under_heading="results", replace=True)
         return
 
     def on_await_user(self, up_next=None):

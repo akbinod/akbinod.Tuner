@@ -67,12 +67,12 @@ class TunerUI(BaseTunerUI):
         cv2.displayStatusBar(self.ctx.func_name,status,60_000)
         return
 
-    def on_show_main(self, img):
+    def on_show_main(self, img, arg_hash):
         if not self.headless and img is not None:
             cv2.imshow(self.ctx.func_name, img)
         return
 
-    def on_show_downstream(self,img):
+    def on_show_downstream(self,img, arg_hash):
         if not self.headless:
             cv2.imshow(self.ctx.func_name_down, img)
         return

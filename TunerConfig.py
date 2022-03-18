@@ -9,6 +9,7 @@ class TunerConfig():
     img_sample_bw = "./tuner_sample_bw.jpg"
 
     output_dir = "./wip"
+
     # why bother looking at uninteresting stuff, and let's preserve old runs
     save_style:SaveStyle = SaveStyle.tagged | SaveStyle.overwrite
 

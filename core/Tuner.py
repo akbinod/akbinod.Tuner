@@ -396,6 +396,10 @@ class Tuner:
     def image(self):
         return self.frame.image
 
+    @property
+    def in_main(self,) -> bool:
+        return self.__calling_main
+
     @image.setter
     def image(self, val):
         '''
@@ -407,14 +411,12 @@ class Tuner:
         if self.__calling_main:
             val = self.__insert_thumbnail(val, self.frame.tn_main)
             self.frame.user_image_main = val
-            self.ui.on_show_main(val)
-            # # TODO - take out this hack
-            # self.ui.on_show_downstream(val)
+            self.ui.on_show_main(val, self.arg_hash)
         else:
             # the object setting this is the downstream func
             val = self.__insert_thumbnail(val, self.frame.tn_down)
             self.frame.user_image_down = val
-            self.ui.on_show_downstream(val)
+            self.ui.on_show_downstream(val, self.arg_hash)
 
     def capture_error(self, func_name):
         self.invocation.errored = True

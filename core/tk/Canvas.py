@@ -13,18 +13,17 @@ from core.BaseTunerUI import BaseTunerUI
 
 
 class Canvas():
-    # def __init__(self,master, sb:StatusBar, status_key) -> None:
-    def __init__(self,master, ui:BaseTunerUI) -> None:
+    def __init__(self,master, ui:BaseTunerUI, max_image_count) -> None:
         # assume there is just the one pic for now
         self.canvas:tk.Canvas = tk.Canvas(master=master
                 ,background="black",relief=tk.FLAT
                 ,border=2)
         self.canvas.grid(in_=master,column=0,row=0,sticky="nswe")
         self.canvas.bind('<Configure>',self.on_canvas_resized)
-        self.resiz=""
+        # get at least 2 images going - main and downstream
+        self.max_image_count= max(max_image_count,2)
         self.images = {}
-        # self.sb = sb
-        # self.status_key = status_key
+
         self.master = master
         self.ui = ui
         solvers.options['show_progress'] = False
@@ -34,9 +33,16 @@ class Canvas():
 
         return
 
-    def render(self, key,image):
+    def render(self, image, key):
+        k = list(self.images.keys())
+        if len(k) > self.max_image_count:
+            # fifo
+            del(self.images[k[0]])
+
         this = self.images[key] = {}
         this["cvImage"] = image
+
+
         self.__do_pil_pipeline()
         return
 
@@ -53,38 +59,6 @@ class Canvas():
             max height
         '''
 
-
-        def get_new(iw,ih,screen_in_landscape, b,c):
-
-
-            Al =matrix( [
-                [1.0,0.0,-1.0,0.0, - 1.0]
-                ,[0.0,1.0,0.0,-1.0, iw/ih] #iw/ih comes here for portrait
-            ])
-            Ap =matrix( [
-                [1.0,0.0,-1.0,0.0, - ih/iw] #ih/iw comes here for portrait
-                ,[0.0,1.0,0.0,-1.0, 1.0]
-            ])
-            sol=solvers.lp(c,Al,b)
-            # solver generally returns less than the max by one
-            nwl = int(sol['x'][0]) + 1
-            nhl = int(sol['x'][1]) + 1
-
-            sol=solvers.lp(c,Ap,b)
-            # solver generally returns less than the max by one
-            nw = int(sol['x'][0]) + 1
-            nh = int(sol['x'][1]) + 1
-
-            if nwl != nw or nhl != nh:
-                print(nwl - nw, nhl - nh)
-
-            if screen_in_landscape:
-            # screen is in landscape
-            # get resize dimensions
-                return nwl, nhl
-            else:
-                return nw, nh
-
         def get_screen_split(tsw,tsh):
             '''
             Returns True if you should use landscape, otherwise returns false
@@ -92,6 +66,7 @@ class Canvas():
             w = h = 0
             for k in self.images:
                 this = self.images[k]
+
                 im = this["cvImage"]
                 w += im.shape[1]
                 h += im.shape[0]
@@ -130,6 +105,7 @@ class Canvas():
         c = matrix([1.0,1.0]) * -1
         for i,k in enumerate(self.images):
             this = self.images[k]
+
             if landscape:
                 top = 0
                 left = (i * sw ) + (i * separator)
@@ -169,8 +145,9 @@ class Canvas():
                                 ,dsize=(nw,nh)
                                 ,interpolation= cv2.INTER_AREA if nw <= w else cv2.INTER_LINEAR
                             )
-
-            image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+            if np.ndim(image) > 2:
+                # only if we have a color image
+                image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
             image = Image.fromarray(image)
             # weird bug with the photo losing scope - hold a ref here
             this["photo_ref"] = ImageTk.PhotoImage(image=image)
@@ -179,70 +156,5 @@ class Canvas():
             y = ((sh - nh) // 2) + top
             self.canvas.create_image((x,y),image=this["photo_ref"],anchor="nw")
 
-    # def simple_resize(self, iw, ih, sw, sh):
-    #     w = False
-    #     h = False
-    #     fx = None
-    #     fy = None
-    #     if sw > sh:
-    #         # screen wider than it is tall
-    #         # w=True
-    #         if iw > ih:
-    #             # and the image is wider
-    #             # reshape to a width aspect ration
-    #             w=True
-    #             fy = fx = sw/iw
-    #         else:
-    #             # image is taller
-    #             # reshape to a height aspect ratio
-    #             h = True
-    #             fy = fx = min(sw/iw, sh/ih)
-    #     else:
-    #         # screen taller than it is wide
-    #         # h = True
-    #         if ih > iw:
-    #             # and the image is taller than it is wide
-    #             # reshape to a height aspect ratio
-    #             h = True
-    #             fx = fy = sh/ih
-    #         else:
-    #             # image is wider
-    #             # reshape to a width aspect ration
-    #             w=True
-    #             fy = fx = min(sw/iw, sh/ih)
-
-
-    #     # random, huh?
-    #     fx *= 1.2
-    #     fy *= 1.2
-
-    #     return fx,fy
-
-    def demo_better_resize(self, iw, ih, sw, sh):
-
-        iw = 100
-        ih = 150
-        sw = 75
-        sh= 50
-
-        A =matrix( [
-            [1.0,0.0,-1.0,0.0,ih/iw] #ih/iw comes here for portrait
-            ,[0.0,1.0,0.0,-1.0, -1] #iw/ih comes here for landscape
-        ])
-        b=matrix([float(sw),float(sh),0.0,0.0,0.0])
-        c = matrix([-1.0,-1.0])
-        sol=solvers.lp(c,A,b)
-        print(sol['x'])
-        x = int(sol['x'][0])
-        y = int(sol['x'][1])
-        print(x,y)
-        # sol = LPSolver()
-        # print(sol.solve(A,b,c))
-
-        # A = matrix([ [-1.0, -1.0, 0.0, 1.0], [1.0, -1.0, -1.0, -2.0] ])
-        # b = matrix([ 1.0, -2.0, 0.0, 4.0 ])
-        # c = matrix([ 2.0, 1.0 ])
-        # sol=solvers.lp(c,A,b)
-        # print(sol['x'])
-        return x
+        return
 

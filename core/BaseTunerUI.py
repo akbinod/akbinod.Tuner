@@ -15,6 +15,8 @@ from constants import *
 # import core.TunerUtils as tu
 from core.CodeTimer import CodeTimer
 
+max_display_images = 2
+
 class BaseTunerUI:
     def __init__(self, func_main
                 , func_downstream = None
@@ -132,14 +134,14 @@ class BaseTunerUI:
         # Must override.
         raise NotImplementedError()
 
-    def on_show_main(self, img):
+    def on_show_main(self, img, arg_hash):
         '''
         Shows the main image.
         '''
         # Must override.
         raise NotImplementedError()
 
-    def on_show_downstream(self,img):
+    def on_show_downstream(self,img, arg_hash):
         '''
         Shows the downstream image
         '''
