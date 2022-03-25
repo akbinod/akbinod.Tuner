@@ -2,8 +2,8 @@
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2022<br>
 
-![ThetaUI](./images/tuner_example_2.png)
-Running my Particle Filter through the tuner...
+![ThetaUI](./images/tuner_example_2.png "ThetaUI")
+Tuning my Particle Filter...
 
 <H3>Introduction</H3>
 If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner.
@@ -46,7 +46,7 @@ Your (unchanged) invocation from '__main__' now shows <code>ThetaUI</code> : ~~a
 - various parts of the status bar tell you:
 	- the image title (when you pass in a file name),
     - the frame number (when you pass in a carousel of images)
-    - code timing in h:m:s and process time
+    - code timing in h,m,s and process time
 	- whether the image displayed was sampled/interpolated,
 	- whether there were exceptions during execution (click when red to view exceptiosn).
 - the menus let you traverse the carousel, start a grid search, save results and images etc.
