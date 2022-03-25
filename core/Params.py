@@ -47,7 +47,7 @@ class Params():
         pinned_parms: params to be passed in to the func unchanged
         '''
         self.ui = tuner_ui
-        self.pinned_params = pinned_parms
+        self.pinned_params = pinned_parms if pinned_parms else {}
         self.tuned_params = {}
         self.target_params = {}
         self.target_defaults = {}
@@ -206,7 +206,7 @@ class Params():
             parm = self.aspec.args[i]
             # arg passed in to the call that kicks off tuning
             val = call_args[i]
-            if parm in self.pinned_params:
+            if self.pinned_params and parm in self.pinned_params:
             # We don't need to create a trackbar if the
             # user wants to pin the arg received into this parm
             # but we need to update the default from null to this

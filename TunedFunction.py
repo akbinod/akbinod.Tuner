@@ -34,7 +34,7 @@ class TunedFunction(DecoratorBase):
 			# these are params to not mess with - just pass them in unchanged to the target function
 			pinned_params = {} if "pinned" not in self.inits else self.inits["pinned"]
 			# self.tuner = TunerUI(self.target,pinned_params=pinned_params)
-			self.tuner = TunerUI(self.target,pinned_params=pinned_params)
+			self.tuner = ThetaUI(self.target)
 
 			is_method = self.hacky_is_self(args[0]) if len(args) > 0 else False
 			self.tuner.build_from_call(is_method, self.inits, args, kwargs)

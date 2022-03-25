@@ -31,7 +31,10 @@ from core.FormattedException import FormattedException
 from constants import *
 from core.param import param,list_param,bool_param,dict_param
 
+
+
 class ThetaUI(BaseTunerUI):
+    max_display_images = 2
     def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None):
 
         super().__init__(func_main, func_downstream=func_downstream, pinned_params=pinned_params, parms_json=parms_json)
@@ -160,10 +163,9 @@ class ThetaUI(BaseTunerUI):
         self.results_tree = jsonToTtkTree(self.results_frame, "results",style=res_style)
 
         # this is where we will put images
-        # self.canvas = Canvas(self.image_frame, self.StatusBar, "sampling")
         self.canvas = Canvas(self.image_frame, self, ThetaUI.max_display_images)
-        # style = ttk.Style()
-        # style.theme_use("alt")
+        style = ttk.Style()
+        style.theme_use("alt")
 
         self.controlrefs = {}
         #This is not the place to do a blocking show()

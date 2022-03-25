@@ -39,6 +39,7 @@ def find_circle(image, radius,tuner=None):
     if not tuner is None:
         # update Tuner's UI
         tuner.image = display
+        tuner.results = {"this":True, "can":["be", "any", "json", "whatsover" ], "or": "let tuner capture your return values"}
     return
 
 def demo_find_circle():
@@ -280,12 +281,12 @@ if __name__ == "__main__":
     TunerConfig.output_dir = "./wip"
 
     # simplest example of TunedFunction() from the readme
-    # demo_find_circle()
+    demo_find_circle()
     # demo_decorator_2()
 
     # demo of explicit instantiation: begin() and grid_search()
     # demo_instantiation()
     # demo_instantiation_2()
-    demo_grid_search()
+    # demo_grid_search()
     # demo_tuner_from_json()
     pass

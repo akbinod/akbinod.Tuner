@@ -1,10 +1,8 @@
 <H1>akbinod.Tuner</H1>
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
-<br>Georgia Tech CS-6476: Spring 2022<br>
-![ThetaUI](./images/tuner_example_2.png "ThetaUI")
+<br>Georgia Tech CS-6476: Spring 2021<br>
 <H3>Introduction</H3>
 If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner.
-
 
 <br>Here's a 5 minute introduction to the essentials. This function (the code for this example is in `example.py`) and invocation...
 
@@ -31,38 +29,27 @@ import TunedFunction
 def find_circle(image, radius, tuner=None)
 
 
-#new line of code to display an updated image in ThetaUI
+#new line of code to display an updated image in TunerUI
     if not tuner is None: tuner.image = updated_image
 
     return results
 
 ```
 
-Your (unchanged) invocation from '__main__' now shows <code>ThetaUI</code> : ~~an openCV window with a trackbar~~ a python tkinter GUI with a spinbox called 'radius' which ranges from 0 to 42.
-- the window title shows the name of your tuned function,
-- various parts of the status bar tell you:
-	- the image title (when you pass in a file name),
-    - the frame number (when you pass in a carousel of images)
-    - code timing in h:m:s and process time
-	- whether the image displayed was sampled/interpolated,
-	- whether there were exceptions during execution (click when red to view exceptiosn).
-- the menus let you traverse the carousel, start a grid search, save results and images etc.
-- on the left, the tree shows you json representing what your results/return vlaues, your args (theta) and exceptions.
+Your (unchanged) invocation from '__main__' now shows <code>TunerUI</code> : an openCV window with a trackbar called 'radius' which ranges from 0 to 42. The window title begins with the name of your tuned function, and the `overlay` shows a menu. Each time you move the slider, <code>TunerUI</code> calls <code>find_circle()</code> with a new value for 'radius'. Here's TunerUI when the trackbar is set to 39.
 
-Each time you change a parameter, <code>ThetaUI</code> calls your code <code>find_circle()</code> with a new value for 'radius'. Here's ThetaUI when the trackbar is set to 39.
-
-![ThetaUI](./images/tuner_example_1.png "ThetaUI")
+![TunerUI](./images/tuner_find_circle_example.png "TunerUI")
 
 <br>And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
-At this point, you are using a python execution harness; one that's easy to use and not disruptive to your code. You also get to skip learning about the openCV HighGUI and trackbars APIs, and focus instead on the joys of particle filtering. There's more to <code>ThetaUI</code>, like:
+At this point, you are using a thin wrapper over openCV trackbars; one that's easier to use and less disruptive to your code. You also get to skip learning about the openCV HighGUI and trackbars APIs. There's more to <code>TunerUI</code>, like:
 <ul>
 <li>it runs a systematic <a href='#gridsearch'>grid search</a> over the space of your args (exhausts the search space),</li>
 <li><a href='#tag'> tagging</a> args (note when theta is cold/warm/on-the-money),</li>
-<li>json <a href='#serialize'>serialization</a> of invocation trees </li>
+<li>json <a href='#serialize'>serialization</a> of invocation trees (analyze your findings, narrow your search space)</li>
 </ul>
 
-<br>So... read on...
+<br>So... read on, McDuff...
 
 <H2>@TunedFunction() Decorator</H2>
 Although you do give up some flexibility, compared to explicitly instantiating and configuring Tuner, just decorating your function is the quickest way of getting started.
@@ -70,7 +57,7 @@ Although you do give up some flexibility, compared to explicitly instantiating a
 
 <ol>
 <li>Decorate the function you want to tune (referred to as <b>target</b>) with <code>@TunedFunction()</code>, and add a 'tuner' param to its signature. (Note: there should be no other decorator on <code>target</code>.)
-<li>Begin tuning by calling <code>target</code>. <code>@TunedFunction</code> creates an instance of ThetaUI (passed to <code>target</code> via the <code>tuner</code> param). You are now in the tuning loop:</li>
+<li>Begin tuning by calling <code>target</code>. <code>@TunedFunction</code> creates an instance of TunerUI (passed to <code>target</code> via the <code>tuner</code> param). You are now in the tuning loop:</li>
 <ul>
 <li>Switch to the Tuner GUI and adjust the trackbars.</li>
 <li>Tuner will invoke your function on each change made to a trackbar.</li>
@@ -155,7 +142,7 @@ Consider the json below. Passing that to a parameter would create a trackbar tha
 ```
 </ul>
 
-### ThetaUI Menu
+### TunerUI Menu
 <ul>
 <li>F1 : runs a <a href='#gridsearch'>grid search</a></li>
 <li>F2 : saves the image</li>
@@ -218,7 +205,7 @@ Here's my workflow:
 <li>When Tuner waits for input, I tag the current set of args (e.g., 'avoid' or 'close'); or just 'press any key'. I can also hit Esc to cancel the grid search.</li>
 <li>After I've run through the cart (cartesian product of all arguments), I query the (json) output file to find my theta, or something close.</li>
 </ol>
-With explicit instantiation (i.e., using ThetaUI rather than @TunedFunction), I can set how long Tuner waits, etc. I typically first run through the search space with a 40ms delay to determine if I'm "in the ball-park". If it looks like the answer or something close to it is in there, I then run through it again with a full second delay, and tag what I find interesting. If I don't find anything close in my first attempt, I open up the search space some (expand the range of values for the args).
+With explicit instantiation (i.e., using TunerUI rather than @TunedFunction), I can set how long Tuner waits, etc. I typically first run through the search space with a 40ms delay to determine if I'm "in the ball-park". If it looks like the answer or something close to it is in there, I then run through it again with a full second delay, and tag what I find interesting. If I don't find anything close in my first attempt, I open up the search space some (expand the range of values for the args).
 
 This is about as much code as I can give you without running afoul of the GA Tech Honor Code. We can spitball some ideas to help you get more value out of the data that's captured if you follow the "Search-Inspect-Tag" workflow I've outlined above.
 <ol>
@@ -227,16 +214,16 @@ This is about as much code as I can give you without running afoul of the GA Tec
 </ol>
 
 <b>Here's another good stopping point. Read on for more fine grained control.</b>
-<H2>ThetaUI Class/Explicit Instantiation</H2>
+<H2>TunerUI Class/Explicit Instantiation</H2>
 
 With explicit instantiation, you give up the convenience of automatic trackbar GUI configuration, but gain more control over features. If you like the UX of <code>@TunedFunction</code>, see the <a href='#explicit'>benefits </a> section below to determine if it's worth it to wade through the rest of this.
 
-Instead of TunedFunction, you import ThetaUI and TunerConfig. ThetaUI is the facade you work with. You could ignore TunerConfig if the default settings (e.g. when and where to save) work for you.
+Instead of TunedFunction, you import TunerUI and TunerConfig. TunerUI is the facade you work with. You could ignore TunerConfig if the default settings (e.g. when and where to save) work for you.
 
 Workflow:
 
 <ol>
-<li>import ThetaUI</li>
+<li>import TunerUI</li>
 <li>Instantiate tuner, choosing between one and <a href='#downstream'> two </a>functions to watch : <code>main</code> and <code>downstream</code>. </li>
 <ul>
 <li>Each func must accept a <code>tuner</code> param with the default value of None...</li>
@@ -274,7 +261,7 @@ A carousel is a group of images that you want tuner to deal with as a set. You t
 <li>If it works with three images, then each element must be a tuple of three image paths, et cetera. </li>
 </ul>
 </ul>
-<li>When <code>Tuner</code> is aware of image files, it uses the file name in <code>ThetaUI</code>'s window title, (instead of just 'frame').</li>
+<li>When <code>Tuner</code> is aware of image files, it uses the file name in <code>TunerUI</code>'s window title, (instead of just 'frame').</li>
 <li>You can specify openCV imread codes to be used when reading files.</li>
 <li>A video file can be used as a frame generator [untested as of April 2021]</li>
 </ul>
@@ -293,10 +280,10 @@ A carousel is a group of images that you want tuner to deal with as a set. You t
 <li>Controlling aspects of <a href='#gridsearch'><code>tuner.grid_search()</code></a>. Please see the docstrings for more information. </li>
 <li>You get to control whether the GUI returns list items vs list indices; keys vs dict objects etc. </li>
 <li>You get to create tuners by spec'ing them in json.</li>
-<li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of ThetaUI.</li>
+<li>Finally, as anyone who has written a Decorator knows, things can get squirrelly when exceptions take place within a partial... you could avoid that whole mess with explicit instantiation of TunerUI.</li>
 </ul>
 
-Apart from the few differences above, <code>ThetaUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. If none of the above are dealbreakers for you, stick with the decorator.
+Apart from the few differences above, <code>TunerUI</code> and <code>TunedFunction()</code> will give you pretty much the same UX. If none of the above are dealbreakers for you, stick with the decorator.
 
 </p>
 
@@ -308,7 +295,7 @@ If you don't see the status bar in Tuner GUI, you are missing <code>opencv-contr
 If you don't see the overlay menu, you are missing <code>Qt backend</code>
 
 ### Important Safety Tips
-The accompanying <code>example.py</code> illustrates some uses. Refer to the docstrings for ThetaUI's interface for details. Play around, and let me know if you think of ways to improve this.
+The accompanying <code>example.py</code> illustrates some uses. Refer to the docstrings for TunerUI's interface for details. Play around, and let me know if you think of ways to improve this.
 
 I've debugged this thing extensively, but I haven't had the time to bullet proof it. It will behave if your arguments are well behaved; but caveat emptor...
 

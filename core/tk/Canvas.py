@@ -35,7 +35,7 @@ class Canvas():
 
     def render(self, image, key):
         k = list(self.images.keys())
-        if len(k) > self.max_image_count:
+        if len(k) >= self.max_image_count:
             # fifo
             del(self.images[k[0]])
 

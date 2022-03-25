@@ -15,7 +15,6 @@ from constants import *
 # import core.TunerUtils as tu
 from core.CodeTimer import CodeTimer
 
-max_display_images = 2
 
 class BaseTunerUI:
     def __init__(self, func_main
