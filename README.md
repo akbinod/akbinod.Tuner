@@ -52,7 +52,9 @@ Your (unchanged) invocation from '__main__' now shows <code>ThetaUI</code> : ~~a
 - on the left, the tree shows you json representing what your  invocation: args, and results.
 - the picture is your image once you are done processing it
 	- typically this shows the last couple images you've specified, that number is configurable
-Each time you change a parameter, <code>ThetaUI</code> calls your code <code>find_circle()</code> with a new value for 'radius'. Here's ThetaUI when the trackbar is set to 39.
+
+<br>
+Each time you change a parameter, <code>ThetaUI</code> calls your code <code>find_circle()</code> with a new value for 'radius'.
 
 <br>And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
