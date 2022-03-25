@@ -2,8 +2,7 @@
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2022<br>
 
-![ThetaUI](./images/tuner_example_2.png "ThetaUI")
-Tuning my Particle Filter...
+![ThetaUI](./images/tuner_example_2.png "tuning my Particle Filter")
 
 <H3>Introduction</H3>
 If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner.
