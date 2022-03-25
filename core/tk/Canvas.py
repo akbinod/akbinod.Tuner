@@ -39,6 +39,11 @@ class Canvas():
             # fifo
             del(self.images[k[0]])
 
+        m = np.max(image)
+        if m <1 and m>0:
+            # normalized image
+            image = cv2.normalize(image, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
+
         this = self.images[key] = {}
         this["cvImage"] = image
 
