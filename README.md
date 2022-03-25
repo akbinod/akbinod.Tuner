@@ -39,21 +39,20 @@ def find_circle(image, radius, tuner=None)
     return results
 
 ```
-
+![ThetaUI](./images/tuner_example_1.png "ThetaUI")
 Your (unchanged) invocation from '__main__' now shows <code>ThetaUI</code> : ~~an openCV window with a trackbar~~ a python tkinter GUI with a spinbox called 'radius' which ranges from 0 to 42.
 - the window title shows the name of your tuned function,
 - various parts of the status bar tell you:
 	- the image title (when you pass in a file name),
     - the frame number (when you pass in a carousel of images)
     - code timing in h,m,s and process time
-	- whether the image displayed was sampled/interpolated,
+	- whether the image displayed was sampled/interpolated for this display,
 	- whether there were exceptions during execution (click when red to view exceptiosn).
 - the menus let you traverse the carousel, start a grid search, save results and images etc.
-- on the left, the tree shows you json representing what your results/return vlaues, your args (theta) and exceptions.
-
+- on the left, the tree shows you json representing what your  invocation: args, and results.
+- the picture is your image once you are done processing it
+	- typically this shows the last couple images you've specified, that number is configurable
 Each time you change a parameter, <code>ThetaUI</code> calls your code <code>find_circle()</code> with a new value for 'radius'. Here's ThetaUI when the trackbar is set to 39.
-
-![ThetaUI](./images/tuner_example_1.png "ThetaUI")
 
 <br>And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
