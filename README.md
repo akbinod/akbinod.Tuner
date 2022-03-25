@@ -2,7 +2,7 @@
 Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 <br>Georgia Tech CS-6476: Spring 2022<br>
 
-![ThetaUI](./images/tuner_example_2.png "Particle Filtering")
+![ThetaUI](./images/tuner_example_2.png)
 Running my Particle Filter through the tuner...
 
 <H3>Introduction</H3>
