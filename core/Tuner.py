@@ -238,32 +238,11 @@ class Tuner:
         res:        result to store
         is_return:  only set to True internally
         '''
-        def format_result():
-            ret = None
-            if type(res) is tuple:
-                # Results are tupled together
-                # convert to array - weed out types
-                # incompatible with json.dumps
-                ret = []
-                for obj in res:
-                    if type(obj) is np.ndarray:
-                        # not using that
-                        pass
-                    else:
-                        ret.append(obj)
-                # ret = {"list":ret}
-            elif type(res) is np.ndarray:
-                ret = None
-            # elif type(res) is dict:
-            #     ret = res
-            else:
-                ret = res
-            return ret
 
         try:
             # get a result that we can safely stash
-            res = format_result()
-
+            res = self.json_dump(res)
+            res = json.loads(res)
             if self.__calling_main:
                 if (self.invocation.results.main is None) or not is_return :
                     # either forwarded call from userland, or
@@ -476,25 +455,33 @@ class Tuner:
         return full_path_name
 
 
+    def json_dump(self,j)->str:
+        def np_encoder(obj):
+            '''
+            From: https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
+            conmak's solution - thank you!
+            '''
+            if isinstance(obj, np.generic):
+                # (np.generic, np.ndarray) ?
+                return obj.item()
+            elif isinstance(obj, np.ndarray):
+                return "<np.ndarray - unsupported>"
+        if not isinstance(j,dict):
+            j = {"o":j}
+        ret = json.dumps(j,indent=4,default=np_encoder,)
+        return ret
     def save_carousel(self):
         '''
         Saves the current set of results to a file following name conventions.
         Use capture to add individual results to the set.
         '''
-        def np_encoder(object):
-            '''
-            From: https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
-            conmak's solution - thank you!
-            '''
-            if isinstance(object, np.generic):
-                # (np.generic, np.ndarray) ?
-                return object.item()
+
         ret = True
 
         fname = self.get_temp_file(suffix=".json")
         try:
             with open(fname,"w") as f:
-                f.write(json.dumps(self.carousel_data,indent=4,default=np_encoder,))
+                f.write(self.json_dump(self.carousel_data))
                 f.write("\n")
         except Exception as e:
             # dont let this screw anything else up
@@ -616,7 +603,6 @@ class Tuner:
             y1 += y
             x1 += x
         return x, x1, y, y1
-
 
     def null_carousel(self):
         # here just to support TunedFunction

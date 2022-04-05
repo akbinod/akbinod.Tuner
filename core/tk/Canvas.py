@@ -18,7 +18,9 @@ class Canvas():
         self.canvas:tk.Canvas = tk.Canvas(master=master
                 ,background="black",relief=tk.FLAT
                 ,border=2)
-        self.canvas.grid(in_=master,column=0,row=0,sticky="nswe")
+        # grid does not work with notebooks
+        # self.canvas.grid(in_=master,column=0,row=0,sticky="nswe")
+        self.canvas.pack(expand=1,fill=tk.BOTH)
         self.canvas.bind('<Configure>',self.on_canvas_resized)
         # get at least 2 images going - main and downstream
         self.max_image_count= max(max_image_count,2)

@@ -5,13 +5,20 @@ from tkinter import Variable, ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
-from typing_extensions import IntVar
+from turtle import shape
+
+# import matplotlib
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# from typing_extensions import IntVar
 
 from core.ParamCheck import ParamCheck
 from core.ParamControl import ParamControl
 from core.ParamCombo import ParamCombo
 from core.ParamSpin import ParamSpin
 from core.tk.WaitKeyEmulator import WaitKeyEmulator
+# from core.tk.Figure import Figure
 
 from core.tk.Panes import Panes
 from core.tk.jsonToTtkTree import jsonToTtkTree
@@ -21,6 +28,7 @@ from core.CodeTimer import CodeTimer
 
 
 import numpy as np
+import random
 
 from TunerConfig import TunerConfig
 from core.Carousel import Carousel
@@ -35,13 +43,23 @@ from core.param import param,list_param,bool_param,dict_param
 
 class ThetaUI(BaseTunerUI):
     max_display_images = 2
-    def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None):
+    def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None, qi_plot_map=None):
 
         super().__init__(func_main, func_downstream=func_downstream, pinned_params=pinned_params, parms_json=parms_json)
-        # self.__grid_search_cancelled = False
 
         # default miliseconds to wait in grid search
         self.gs_delay = 500
+        self.__qi = []
+        self.__qi_plot_map = qi_plot_map
+
+
+        # this is where we will put images
+        self.canvas = Canvas(self.image_frame, self, ThetaUI.max_display_images)
+        # this will hold a matplotlib plot
+        self.plot_canvas = None
+        self.__figure:Figure = None
+
+        self.controlrefs = {}
 
     def build(self):
         def config_menus(win):
@@ -63,6 +81,8 @@ class ThetaUI(BaseTunerUI):
             win.bind("<F2>", self.onClick_File_SaveImage)
             mnu.add_command(label="Save Results",accelerator="F3",command=self.onClick_File_SaveResult)
             win.bind("<F3>", self.onClick_File_SaveResult)
+            mnu.add_command(label="Save Plot",accelerator="F4",command=self.onClick_File_SavePlot)
+            win.bind("<F4>", self.onClick_File_SaveResult)
             mnu.add_separator()
             mnu.add_command(label="Quit",accelerator="Ctrl+Q", command=self.onClick_File_Exit)
 
@@ -74,7 +94,9 @@ class ThetaUI(BaseTunerUI):
             win.bind("<F9>", self.onClick_RateExact)
             mnu.add_command(label="Avoid",accelerator="F10",command=self.onClick_RateAvoid)
             win.bind("<F10>", self.onClick_RateAvoid)
-
+            mnu.add_separator()
+            mnu.add_command(label="Clear QI",command=self.onClick_Clear_QI)
+            mnu.add_command(label="Quite Interesting Plot",command=self.onClick_Plot_QI)
 
 
             mnu = tk.Menu(mm, tearoff=0)
@@ -120,7 +142,27 @@ class ThetaUI(BaseTunerUI):
             # check row number
             myStatusBar = StatusBar(win,1,sdef)
             return myStatusBar
+        def config_styles(win):
+            '''
+            https://pypi.org/project/ttkthemes/
+            AWESoME!
+            https://ttkbootstrap.readthedocs.io/en/latest/license/
+            '''
+            self.style = ttk.Style(win)
+            self.style.theme_use("aqua")
 
+            self.style.configure("tuner.Toolbutton", None
+                        , padding=0
+                        , border=0
+                        , width = 24
+                        , height = 18
+                        # , background = "silver"
+                        # , relief = tk.RIDGE
+                        )
+
+            self.style.configure('results.Treeview'
+                        , font='Monoisome 16')
+            return
 
         self.className = "ak.binod.Tuner.Theta"
         self.winMain = tk.Tk(baseName=self.className,className=self.className)
@@ -138,18 +180,36 @@ class ThetaUI(BaseTunerUI):
         # replace the default tk menu
         self.main_menu = config_menus(self.winMain)
 
+        # create our custom ttk styles
+        config_styles(self.winMain)
+
         # get a 3 paned window going
         d = Panes.get_default_3_part_def()
         d["left"]["name"] = "results"
         d["right_top"]["name"] = "image"
         d["right_bottom"]["name"] = "tuner"
         d["right_bottom"]["stretch"] = "never"
+
         pns = Panes(self.winMain,d).build()
-        # we're going to do things with this guy
-        self.tuner_pane:tk.PanedWindow  =pns["tuner"]
+        self.tuner_pane:tk.PanedWindow =pns["tuner"]
+        self.tuner_frame = pns['tuner']
         self.results_frame:tk.Frame = pns['results']
-        self.image_frame:tk.Frame = pns['image']
-        self.tuner_frame:tk.Frame = pns['tuner']
+
+
+        # add a notebook to the image frame so we can show an image and a plot
+        nb:ttk.Notebook = ttk.Notebook(master = pns['image'])
+        # add the notebook to the pane
+        # grid does not work with notebooks and anything contained
+        # in a notebook, only pack does
+        nb.pack(expand=1,fill=tk.BOTH)
+
+        # add the image and plot tabs to the notebook
+        self.image_frame= ttk.Frame(master=nb)
+        nb.add(self.image_frame ,text="Image",sticky="nswe")
+
+        self.plot_frame = ttk.Frame(master=nb)
+        nb.add(self.plot_frame  ,text="Plot",sticky="nswe")
+
 
         # configure its grid
         self.controls = []
@@ -157,17 +217,9 @@ class ThetaUI(BaseTunerUI):
         for i in range(self.control_columns):
             self.tuner_frame.columnconfigure(i,pad=2,weight=1)
 
+        self.results_tree = jsonToTtkTree(self.results_frame, "results",style="tuner.Treeview")
 
-        # non proportional font on Mac, used to be a system font
-        res_style = ttk.Style().configure('results.Treeview', font='Menlo 16')
-        self.results_tree = jsonToTtkTree(self.results_frame, "results",style=res_style)
 
-        # this is where we will put images
-        self.canvas = Canvas(self.image_frame, self, ThetaUI.max_display_images)
-        style = ttk.Style()
-        style.theme_use("alt")
-
-        self.controlrefs = {}
         #This is not the place to do a blocking show()
         return
 
@@ -196,6 +248,17 @@ class ThetaUI(BaseTunerUI):
     def onClick_File_SaveResult(self, *args, **kwargs):
         # force this invocation data to be saved
         self.save_invocation()
+        return
+
+    def onClick_File_SavePlot(self, *args, **kwargs):
+        # save the plot if any
+        if not self.plot_canvas: return
+        f = fd.asksaveasfilename(defaultextension="png", title="Save this plot..."
+                                    ,filetypes=(("png files", "*.png")
+                                    ,("All files", "*.*") )
+                                )
+        if f and f != "":
+            self.__figure.savefig(f)
         return
 
     def onClick_View_Next(self, *args, **kwargs):
@@ -230,7 +293,78 @@ class ThetaUI(BaseTunerUI):
             self.on_error_update(e)
 
         return
+    def onClick_Clear_QI(self, *args, **kwargs):
+        self.__qi.clear()
+        return
+    def onClick_Plot_QI(self, *args, **kwargs):
+        # TODO: make a gui for building this map
+        # colors = ['blue', 'green','red','cyan','magenta','yellow','black']
+        colors = ['tab:blue', 'tab:orange', 'tab:green','tab:red','tab:purple','tab:brown','tab:pink','tab:gray','tab:olive','tab:cyan']
+        x = None
+        x_fld = None
+        map = self.__qi_plot_map
+        qi = self.__qi
+        if not (map and qi): return
+        if not "y" in map: return
 
+
+        if "x" in map:
+            # user specified the x
+            x_fld = map["x"]
+            if not x_fld in qi[0]: return
+            xlabel = x_fld
+        else:
+            # just a simple series - use the ordinal position as x
+            x = np.linspace(1, len(qi), len(qi))
+            xlabel = "index"
+
+        y_flds = map["y"]
+        # check that all the things in the y set actually exist
+        for item in y_flds:
+            if not item in qi[0]: return
+        # mix it up, get a random bunch of colors
+        these = random.choices(range(len(colors)),k=len(y_flds))
+        these_colors = []
+        for i in these:
+            these_colors.append(colors[i])
+
+        if x_fld: x = np.empty(shape=(len(qi),),dtype=np.object_)
+        y = np.empty(shape=(len(qi),len(y_flds)))
+        for i, item in enumerate(qi):
+            if x_fld: x[i] = item[x_fld]
+            for j, col in enumerate(y_flds):
+                y[i][j] = item[col]
+
+        handles = []
+        fig:Figure = Figure()
+        ax = None
+        tkw = dict(size=4, width=1.5)
+        for i,label in enumerate(y_flds):
+            if not ax:
+                ax = fig.add_subplot()
+                ax.set_xlabel(xlabel)
+                ax.tick_params(axis='x', **tkw)
+                style = "-"
+            else:
+                ax = ax.twinx()
+                style = "-"
+            data = y[:,i]
+            ax.set_ylim(np.min(data), np.max(data))
+            ax.set_ylabel(label)
+            ax.yaxis.label.set_color(these_colors[i])
+            ax.tick_params(axis='y', colors=these_colors[i], **tkw)
+            p, = ax.plot(x, data, style, label=label,color=these_colors[i])
+            handles.append(p)
+
+
+
+        if 'title' in map: ax.set_title(map['title'])
+        ax.legend(handles=handles)
+        # if 'ylabel' in map: ax.set_ylabel(map['ylabel'])
+        # if 'xlabel' in map: ax.set_xlabel(map['xlabel'])
+        self.figure = fig
+
+        return
     def on_before_invoke(self):
         '''
         Called from the tuner.
@@ -241,6 +375,7 @@ class ThetaUI(BaseTunerUI):
 
     def on_after_invoke(self,invocation):
         self.results_tree.build(invocation,under_heading="invocation",replace=True)
+        self.results_tree.build(self.quite_interesting,under_heading="Quite Interesting",replace=True)
         # sooooo important to have the next line
         self.winMain.update_idletasks()
         self.winMain.bell()
@@ -330,7 +465,6 @@ class ThetaUI(BaseTunerUI):
             c.value = val
 
         return
-
 
     @property
     def sampling(self):
@@ -481,3 +615,39 @@ class ThetaUI(BaseTunerUI):
 
         return insp.null_route()
 
+    @property
+    def figure(self) -> Figure:
+        # because py won't let me do a write-only property
+        return self.__figure
+    @figure.setter
+    def figure(self,val:Figure) -> None:
+        if not isinstance(val,Figure): return
+
+        # get rid of old stuff
+        if self.plot_canvas: self.plot_canvas.get_tk_widget().pack_forget()
+
+        # get a new canvas in
+        self.__figure = val
+        self.plot_canvas = FigureCanvasTkAgg(self.__figure, master=self.plot_frame)
+        w = self.plot_canvas.get_tk_widget()
+        w.pack(expand=1,fill=tk.BOTH)
+        # grid does not work with things in a notebook
+        # w.grid(in_=self.master,column=0,row=0,sticky="nswe")
+
+        # finally, draw the figure
+        self.plot_canvas.draw()
+
+        return
+
+    @property
+    def quite_interesting(self):
+        return self.__qi
+
+    @quite_interesting.setter
+    def quite_interesting(self,val:dict):
+        self.__qi.append(val)
+
+        return
+    def save_qi(self):
+
+        return
