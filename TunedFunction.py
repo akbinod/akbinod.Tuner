@@ -3,7 +3,7 @@ import functools
 import inspect
 import numpy as np
 from core.DecoratorBase import *
-from TunerUI import TunerUI
+# from TunerUI import TunerUI
 from ThetaUI import ThetaUI
 
 class TunedFunction(DecoratorBase):

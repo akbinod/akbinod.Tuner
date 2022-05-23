@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from cvxopt import matrix, solvers
+from matplotlib.font_manager import list_fonts
 import numpy as np
 import cv2
 # import PIL
@@ -35,19 +36,65 @@ class Canvas():
 
         return
 
-    def render(self, image, key):
-        k = list(self.images.keys())
-        if len(k) >= self.max_image_count:
-            # fifo
-            del(self.images[k[0]])
+    def render(self, image, label):
+        '''
+        Can send in a single image and a single label/key, or tuples of equal length
+        '''
 
-        m = np.max(image)
-        if m <1 and m>0:
-            # normalized image
-            image = cv2.normalize(image, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
+        images = None
+        labels = None
+        if isinstance(image,tuple):
+            images = list(image)
+            if not label is None: labels = list(label)
+        elif isinstance(image,list):
+            # laready in a list
+            images = image
+            if not label is None: labels = label
+        else:
+            images = []
+            images.append(image)
+            if not label is None:
+                labels = []
+                labels.append(label)
 
-        this = self.images[key] = {}
-        this["cvImage"] = image
+        if labels is None:
+            labels = []
+            for i, _ in enumerate(images):
+                labels.append(f"Frame{i + 1}")
+
+        # Doing it this way allows us to show a
+        # large number of images if the "inspect"
+        # calls for it
+        if False:
+            n = self.max_image_count - len(images)
+            if n <= 0:
+                del(self.images)
+                self.images = {}
+            else:
+                k = list(self.images.keys())
+                while n > 0 and len(k) >= n:
+                    # fifo
+                    del(self.images[k[0]])
+                    n -= 1
+        else:
+            del(self.images)
+            self.images = {}
+
+        for i in range(len(images)):
+            key = labels[i]
+            im = images[i]
+            if im is None: continue
+            m = np.max(im)
+            if m <=1 and m>0:
+                # normalized image
+                image = cv2.normalize(im, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
+                # image *= 255
+
+            this = self.images[key] = {}
+            if i % 2 == 1:
+                im = cv2.rectangle(im.copy(),(0,0), (im.shape[1]-1, im.shape[0]-1),color=(173,255,47))
+
+            this["cvImage"] = im
 
 
         self.__do_pil_pipeline()

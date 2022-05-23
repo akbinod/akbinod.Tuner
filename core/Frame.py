@@ -11,11 +11,8 @@ class Frame(PropertyBag):
         self.files = []
         self.images = []
         self.params = {}
-        #Holds user input so that we can insert thumbnails, save, etc.
+        #Holds user input so that we can save, etc.
         self.user_image_main = None
-        self.user_image_down = None
-        self.tn_main = None
-        self.tn_down = None
 
         return
 

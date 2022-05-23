@@ -1,3 +1,4 @@
+import os
 
 import tkinter as tk
 
@@ -5,7 +6,7 @@ from tkinter import Variable, ttk
 from tkinter import messagebox as mb
 from tkinter import dialog as dlg
 from tkinter import filedialog as fd
-from turtle import shape
+# from turtle import shape
 
 # import matplotlib
 from matplotlib.figure import Figure
@@ -25,7 +26,7 @@ from core.tk.jsonToTtkTree import jsonToTtkTree
 from core.tk.StatusBar import StatusBar
 from core.tk.Canvas import Canvas
 from core.CodeTimer import CodeTimer
-
+from core.VideoFrameGenerator import VideoFrameGenerator
 
 import numpy as np
 import random
@@ -35,7 +36,7 @@ from core.Carousel import Carousel
 from core.Tuner import Tuner
 from core.Params import Params
 from core.BaseTunerUI import BaseTunerUI
-from core.FormattedException import FormattedException
+from core.tk.FormattedException import FormattedException
 from constants import *
 from core.param import param,list_param,bool_param,dict_param
 
@@ -45,7 +46,7 @@ class ThetaUI(BaseTunerUI):
     max_display_images = 2
     def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None, qi_plot_map=None):
 
-        super().__init__(func_main, func_downstream=func_downstream, pinned_params=pinned_params, parms_json=parms_json)
+        super().__init__(func_main, pinned_params=pinned_params, parms_json=parms_json)
 
         # default miliseconds to wait in grid search
         self.gs_delay = 500
@@ -76,6 +77,7 @@ class ThetaUI(BaseTunerUI):
             mm.add_cascade( menu=mnu, label="File")
             # add commands to the File menu
             mnu.add_command(label="Open json",command=self.onClick_File_Open)
+
             mnu.add_separator()
             mnu.add_command(label="Save Image",accelerator="F2",command=self.onClick_File_SaveImage)
             win.bind("<F2>", self.onClick_File_SaveImage)
@@ -83,6 +85,7 @@ class ThetaUI(BaseTunerUI):
             win.bind("<F3>", self.onClick_File_SaveResult)
             mnu.add_command(label="Save Plot",accelerator="F4",command=self.onClick_File_SavePlot)
             win.bind("<F4>", self.onClick_File_SaveResult)
+
             mnu.add_separator()
             mnu.add_command(label="Quit",accelerator="Ctrl+Q", command=self.onClick_File_Exit)
 
@@ -105,6 +108,8 @@ class ThetaUI(BaseTunerUI):
             win.bind("<F5>", self.onClick_GridSearch)
             mnu.add_separator()
             self.gs_delay_var = tk.IntVar(self.winMain,500,"gs_delay")
+            mnu.add_radiobutton(label="20 ms delay (video)", var=self.gs_delay_var, value=20, command=self.set_gs_delay)
+            mnu.add_radiobutton(label="150 ms delay (slow video)", var=self.gs_delay_var, value=150, command=self.set_gs_delay)
             mnu.add_radiobutton(label="500 ms delay", var=self.gs_delay_var, value=500, command=self.set_gs_delay) #
             mnu.add_radiobutton(label="1 second", var=self.gs_delay_var, value=1000, command=self.set_gs_delay)
             mnu.add_radiobutton(label="2 seconds", var=self.gs_delay_var, value=2000, command=self.set_gs_delay)
@@ -117,17 +122,23 @@ class ThetaUI(BaseTunerUI):
             mnu.add_command(label="Previous",accelerator="Shift+Return",command=self.onClick_View_Prev)
             win.bind("<Shift Return>", self.onClick_View_Prev)
 
+            mnu = tk.Menu(mm, tearoff=0)
+            mm.add_cascade( menu=mnu, label="Video")
+            mnu.add_command(label="Open",command=self.onClick_Open_Video)
+            mnu.add_command(label="Replay",command=self.onClick_Replay_Video)
 
             return mm
         def config_status(win):
             sdef = {
                     "file":{
                         "justify":"left"
-                        ,"minwidth":20
+                        ,"minwidth":30
+                        , "callback": self.on_click_status_file
                     }
                     ,"frame":{
                         "justify":"right"
-                        ,"minwidth":10
+                        ,"minwidth":20
+                        , "callback": self.on_click_status_frame
                     }
                     ,"timing":{
                         "justify":"center"
@@ -226,6 +237,7 @@ class ThetaUI(BaseTunerUI):
     def __del__(self):
 
         return
+
     def onClick_File_Exit(self, *args):
         # delete all resources
         self.winMain.quit()
@@ -270,6 +282,22 @@ class ThetaUI(BaseTunerUI):
     def onClick_View_Prev(self, *args, **kwargs):
         if not self.in_grid_search:
             self.ctx.regress_frame()
+        return
+
+    def onClick_Open_Video(self, *args, **kwargs):
+        if self.in_grid_search: return
+        # fname = boo.input_dir +  "/walking/" + "person01_walking_d1_uncomp.avi"
+        f = fd.askopenfilename(defaultextension=".avi", title="Open a video file..."
+                                    ,filetypes=(("AVI files", "*.avi")
+                                    ,("All files", "*.*") )
+                                )
+        self.last_video_file = f
+        self.play_video(self.last_video_file)
+
+        return
+    def onClick_Replay_Video(self, *args, **kwargs):
+        if self.in_grid_search: return
+        self.play_video(self.last_video_file)
         return
 
     def onClick_RateClose(self, *args, **kwargs):
@@ -347,7 +375,7 @@ class ThetaUI(BaseTunerUI):
                 style = "-"
             else:
                 ax = ax.twinx()
-                style = "-"
+                style = "o"
             data = y[:,i]
             ax.set_ylim(np.min(data), np.max(data))
             ax.set_ylabel(label)
@@ -369,6 +397,7 @@ class ThetaUI(BaseTunerUI):
         '''
         Called from the tuner.
         '''
+
         self.StatusBar.error = None
         self.status = ""
         return
@@ -397,14 +426,23 @@ class ThetaUI(BaseTunerUI):
     def on_status_update(self, status):
         self.StatusBar["status"] = status
         return
+    def on_click_status_file(self, *args):
+        self.winMain.clipboard_clear()
+        self.winMain.clipboard_append(self.StatusBar["file"])
+        return
+    def on_click_status_frame(self, *args):
+        self.winMain.clipboard_clear()
+        self.winMain.clipboard_append(self.StatusBar["frame"])
+        return
 
     def on_show_main(self, img, arg_hash):
-        if not self.headless: self.canvas.render(img, arg_hash + "_m")
+        if not self.headless: self.canvas.render(img, arg_hash)
 
         return
 
+
     def on_show_downstream(self,img, arg_hash):
-        if not self.headless: self.canvas.render(img, arg_hash + "_d")
+        if not self.headless: self.canvas.render(img, arg_hash)
 
         return
 
@@ -603,17 +641,27 @@ class ThetaUI(BaseTunerUI):
             pass
         return
 
-    def inspect(self, image,comment,delay=None):
+    def inspect(self, image, *, comment=None,label=None):
         '''
         When you want to show something and pause before the next iteration.
-        delay is not used - the setting for grid search pauses is used
         '''
-        self.image = image
+        self.canvas.render(image,label)
         self.status = comment
-        if delay is None: delay = self.gs_delay
-        insp = WaitKeyEmulator(self.winMain,delay=delay)
+        insp = WaitKeyEmulator(self.winMain,delay=self.gs_delay)
 
         return insp.null_route()
+
+    def play_video(self,f):
+        if f is not None and f != "":
+            self.StatusBar["file"] = os.path.split(f)[1]
+            vid = VideoFrameGenerator(f)
+            tc = vid.frame_count
+            v = next(vid)
+            for fr,ix in v:
+                # tuner.inspect(vid.background)
+                self.StatusBar["frame"] = f"{str(ix)} of {tc}"
+                if not self.inspect(fr): break
+        return
 
     @property
     def figure(self) -> Figure:
@@ -651,3 +699,8 @@ class ThetaUI(BaseTunerUI):
     def save_qi(self):
 
         return
+
+    @property
+    def Window(self):
+        return self.winMain
+
