@@ -90,15 +90,45 @@ class FormattedException():
 
         f = (0, len(self.stack) - 1) if self.reverse_stack else (len(self.stack) - 1, 0)
         if f[0] >= 0 and len(self.stack) > f[0]:
-            self.end = self.format(self.stack[f[0]])
+            self.end, self.offending_line = self.format(self.stack[f[0]])
         if f[1] >= 0 and len(self.stack) > f[1]:
-            self.start = self.format(self.stack[f[1]])
+            self.start, _ = self.format(self.stack[f[1]])
 
         return
 
+    def __add_panes(self, test=False):
+
+        self.win.columnconfigure(0,weight=1)
+        self.win.rowconfigure(0,weight=1)
+        frames = {}
+
+
+        sashrelief = tk.GROOVE
+        sasshwidth = 5
+
+        # add in our panes
+        pn = tk.PanedWindow(master = self.win,orient="vertical",sashwidth=sasshwidth, sashrelief=sashrelief)
+        # take up all the real estate on the window
+        pn.grid(in_ = self.win,row= 0, column=0,sticky="nswe")
+
+        fr = frames["error"] = tk.Frame(master=pn)
+        pn.add(fr,stretch="always")
+        fr = frames["stack"] = tk.Frame(master=pn)
+        pn.add(fr,stretch="always")
+
+
+        for key in frames:
+            f:tk.Frame = frames[key]
+            # each frame just has one col, one row for grid geometry manager
+            f.rowconfigure(0,weight=1)
+            f.columnconfigure(0,weight=1)
+
+
+        return frames["error"], frames["stack"]
+
     def __build_ui(self):
         # if self.master is None:
-        if self.master is None or self.master.deiconify() == '':
+        if self.master is None or not self.master.winfo_exists():
             # main window is not visible yet
             self.win = tk.Tk()
             # TODO: put in a null menu someday
@@ -106,26 +136,44 @@ class FormattedException():
             # do this as a child window
 
             self.win = tk.Toplevel(master=self.master)
-            try:
-                self.win.tk.call("::tk::unsupported::MacWindowStyle"
-                                    , "style", self.win._w, "utility")
-                # Besides utility, other useful appearance styles include floating, plain, and modal.
-            except:
-                pass
-            # Since this is a child window, do not overwrite
-            # the parent's menus
+            if False:
+                # this is a modal dialog - not the best experience
+                try:
+                    self.win.tk.call("::tk::unsupported::MacWindowStyle"
+                                        , "style", self.win._w, "utility")
+                    # Besides utility, other useful appearance styles include floating, plain, and modal.
+                    # Since this is a child window, do not overwrite
+                    # the parent's menus
+                except:
+                    pass
+        err, st = self.__add_panes()
+        self.win.title(self.end)
 
-        # Adjust the grid on the main body, we want a grid
-        # with just the one col and one row
-        self.win.columnconfigure(0,weight=1)
-        self.win.rowconfigure(0,weight=1)
-        self.t:ttk.Treeview = ttk.Treeview(self.win,selectmode='browse'
+        # error
+        self.l:tk.Text = tk.Text(master=err,wrap="word")
+        # self.l.insert(1.0, (self.offending_line, '\n\n', self.error))
+        self.l.insert(1.0, self.error)
+        # self.l.insert(2.0,self.error)
+        self.l.grid(sticky="nswe",padx=3,pady=3)
+
+        # stack
+        self.t:ttk.Treeview = ttk.Treeview(master=st
+                                        , selectmode='browse'
                                         # ,style=style
-                                        ,columns=["file", "line_num", "line", "path"])
-        self.t.grid(column=0,row=0,in_=self.win,sticky="nswe",padx=3,pady=3)
-        self.tree_root = "" # self.t.insert("",'end',text="stack")
+                                        ,columns=["line_num", "file", "line", "path"]
+                                        ,show= "headings")
+        self.t.column("line_num", anchor="e")
+        self.t.heading('line_num', text='line_num')
+        self.t.heading('file', text='file')
+        self.t.heading('line', text='line')
+        self.t.heading('path', text='path')
+        self.t.grid(sticky="nswe",padx=3,pady=3)
+        self.t.bind('<<TreeviewSelect>>', self.on_item_selected)
+        self.tree_root = ""
 
-        self.win.title(self.error)
+
+
+
 
         iid = self.tree_root
         if iid != "":
@@ -138,9 +186,9 @@ class FormattedException():
                 # replace tree_root with iid to gt the nested structure (meh)
                 iid = self.t.insert(self.tree_root,'end',text=this["method"]
                             , values=[
-                                this["line"]
+                                this["line_num"]
                                 ,this["file"]
-                                ,this["line_num"]
+                                ,this["line"]
                                 ,this["path"]
                                 ]
                             )
@@ -148,10 +196,23 @@ class FormattedException():
 
         return
 
+    def on_item_selected(self, event):
+        # just put the line number on the clipboard
+        item= self.t.item(self.t.selection()[0])
+        item = item["values"]
+        line = item[0]
+        if True:
+            file = os.path.join(item[3], item[1])
+        else:
+            file = item[1]
+        self.win.clipboard_clear()
+        self.win.clipboard_append(f"{file}:{line}")
 
     def format(self, this):
-        s = f'{this["file"]} :: {this["method"]} : {this["line"]}  [line:{this["line_num"]}]'
-        return s
+        # perhaps best to leave the actual line out of it
+        # s = f'{this["file"]} :: {this["method"]} : {this["line"]}  [line:{this["line_num"]}]'
+        s = f'{this["file"]} :: {this["method"]}  [line:{this["line_num"]}]'
+        return s, this["line"]
 
     @property
     def json(self) -> dict:

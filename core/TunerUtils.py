@@ -50,7 +50,7 @@ def bin_these(iterable_1d,wt="Bin These"):
     return hist,bins,mid
 
 # this needs to move to TunerUI
-def minimal_preprocessor( cb_downstream = None, thumbnail=None):
+def minimal_preprocessor( cb_downstream = None):
     '''
     Tuning the pre-processing is a common task in CV. Use this method to
     get a minimal (you will need more for your projects) preprocessing
@@ -78,9 +78,7 @@ def minimal_preprocessor( cb_downstream = None, thumbnail=None):
 
         # get the processed image
         tuner.image = TunerUI.preprocess_to_spec(img,tuner.args)
-        # process the thumbnail if one exists
-        if not thumbnail is None:
-            tuner.thumbnail = TunerUI.preprocess_to_spec(thumbnail,tuner.args)
+
         return
 
     json_def={

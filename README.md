@@ -5,10 +5,13 @@ Binod Purushothaman : binod@gatech.edu/ak.binod@gmail.com
 ![ThetaUI](./images/tuner_example_2.png "tuning my Particle Filter")
 
 <H3>Introduction</H3>
-If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. Importing this component, and copying 3 lines into your code will get you a pretty decent parameter Tuner.
+If you're studying Computer Vision, or Reinforcement Learning, parameter tuning is probably causing you some angst. The goal is to give you a python execution harness for parameter tuning that's easy to use and minimally disruptive to your CV code. You get to skip learning about openCV's HighGUI and Trackbars APIs, and focus instead on the joys of particle filtering. Here's a 5 minute introduction to the essentials (the code for this example is in `example.py`).
+
+<H3>Getting started...</H3>
+Importing this component, and copying 3 lines into your code will get you the tuner <code>ThetaUI</code>.
 
 
-<br>Here's a 5 minute introduction to the essentials. This function (the code for this example is in `example.py`) and invocation...
+<br>This function and its invocation...
 
 ```{python}
 def find_circle(image, radius):
@@ -22,7 +25,7 @@ if __name__ == "__main__":
 
 ```
 
-... hooked up to Tuner, become:
+... hooked up to ThetaUI, become:
 
 ```{python}
 #new import
@@ -40,7 +43,7 @@ def find_circle(image, radius, tuner=None)
 
 ```
 ![ThetaUI](./images/tuner_example_1.png "ThetaUI")
-Your (unchanged) invocation from '__main__' now shows <code>ThetaUI</code> : ~~an openCV window with a trackbar~~ a python tkinter GUI with a spinbox called 'radius' which ranges from 0 to 42.
+Your (unchanged) invocation from '__main__' now shows <code>ThetaUI</code> : a python tkinter GUI with a spinbox called 'radius' which ranges from 0 to 42.
 - the window title shows the name of your tuned function,
 - various parts of the status bar tell you:
 	- the image title (when you pass in a file name),
@@ -58,7 +61,7 @@ Each time you change a parameter, <code>ThetaUI</code> calls your code <code>fin
 
 <br>And *that* folks, is pretty much it. Here's a good stopping point; try this out on your CV code.
 
-At this point, you are using a python execution harness; one that's easy to use and not disruptive to your code. You also get to skip learning about the openCV HighGUI and trackbars APIs, and focus instead on the joys of particle filtering. There's more to <code>ThetaUI</code>, like:
+There's more to <code>ThetaUI</code>, like:
 <ul>
 <li>it runs a systematic <a href='#gridsearch'>grid search</a> over the space of your args (exhausts the search space),</li>
 <li><a href='#tag'> tagging</a> args (note when theta is cold/warm/on-the-money),</li>

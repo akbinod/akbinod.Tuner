@@ -22,11 +22,56 @@ from core.Carousel import Carousel
 from constants import *
 from core.Frame import Frame
 from core.CodeTimer import CodeTimer
-from core.FormattedException import FormattedException
+from core.tk.FormattedException import FormattedException
 # from core.BaseTunerUI import BaseTunerUI
 
+'''
+Evolved into something that has:
+    1. file functionality:
+        saving images
+        saving invocation dumps
+        determining file names - wtf?
+    2. invocation functionaliety
+        invoke
+        log errors
+        time invocations etc
+    3. Error management
+        make sure it gets into the log
+        show it etc
+    4. Carousel management
+        enter a carousel
+        moving forward and backward through the carousel - frame mgt
+        exit the carousel
+        timing invocations
+    5. Actual tuner mgt
+        manage the parameters object
+        know the function, get the partial together
+        grid search (yeah, that stays in tuner)
+
+
+    6. Delegation to UI
+        -- on frame changed - tap into it from the Carousel
+        -- on timing update - read it out of the Invocation on it's "done"
+        -- on results update - short circuit it, userland code is reaching out to UI anyway
+        -- on before_invoke - tap directly into it from the Invocation
+                all of that work in that proc is basically setting up the invocation - can move there
+        -- on after_invoke - tap directly into tht from the Invocation
+                also invocation centric code here in the event handler
+
+A particularly Rube Goldberg scheme to save shit based on whether there were errors, what the config was etc
+None of that is needed now because we have a proper UI.
+    file functionality
+        totally needs to move to the UI layer
+            saving results, images plots etc is so UX
+        always use file save as
+    saving invocation logs  - moves to the UI layer
+        driven only by the user - let them choose to save
+            - prompt for all/selected only...
+    error management
+        keep as is - except don't try saving etc
+'''
 class Tuner:
-    def __init__(self, ui, config:TunerConfig, params:Params, func_main, func_downstream):
+    def __init__(self, ui, config:TunerConfig, params:Params, func_main):
         '''
         Usage:
         This class is the main tuning engine, and is only used by the Ui
@@ -37,7 +82,6 @@ class Tuner:
         config: global config for Tuner
         params: instance of params manager
         func_main: tuned function
-        func_downstream: downstream function
         '''
         # we'll raise UI update events on this guy
         self.ui = ui
@@ -55,13 +99,11 @@ class Tuner:
             self.frame = next(c)
         else:
             self.func_main = func_main
-        # downstream function to call
-        self.func_down = func_downstream
 
         # get something set up to check against
         self.invocation = None
         # this safe default needs to be established here
-        self.__calling_main = True
+
         # other state variables are initialized in before_invoke
 
         return
@@ -161,38 +203,6 @@ class Tuner:
         would pass a real value.
         '''
 
-        def safe_invoke(cb):
-            try:
-                if cb is None: return
-
-                if self.__calling_main:
-                    # invoke
-                    p = self._params.resolved_args
-                    if inspect.ismethod(cb):
-                        # if there is a bound self, we do
-                        # not need the one in the parms
-                        # otherwise, we do.
-                        # For some reason (TBD), going via the decorator
-                        # does not pick up the self binding, but regular
-                        # instantiation provides it.
-                        if "self" in p: del p["self"]
-                    res = cb(**p)
-                else:
-                    # the red headed stepchild gets no arg love
-                    res = cb(tuner=self.ui)
-
-                # At this point, the target is done.
-                # Use whatever returns we have captured.
-                self.set_result(res,is_return=True)
-            except Exception as error:
-                # do not let downstream errors kill us
-                # eventually we'll have an appropriate gui
-                # for showing this error
-                self.capture_error(self.get_func_name(cb))
-            finally:
-                # Either the user has set results or we have
-                pass
-            return
 
         ret = True
         ct = CodeTimer(self.func_name)
@@ -200,17 +210,22 @@ class Tuner:
 
             # now let the context grab what it may
             self.before_invoke()
-
-            # call the user proc that does the calc/tuning
-            self.__calling_main = True
-
-
             with ct:
-                safe_invoke(self.func_main)
-
-            #  call the user proc that does the secondary processing/application
-            self.__calling_main = False
-            safe_invoke(self.func_down)
+                cb = self.func_main
+                # invoke
+                p = self._params.resolved_args
+                if inspect.ismethod(cb):
+                    # if there is a bound self, we do
+                    # not need the one in the parms
+                    # otherwise, we do.
+                    # For some reason (TBD), going via the decorator
+                    # does not pick up the self binding, but regular
+                    # instantiation provides it.
+                    if "self" in p: del p["self"]
+                res = cb(**p)
+                # At this point, the target is done.
+                # Use whatever returns we have captured.
+                self.set_result(res,is_return=True)
 
             # done calculating - don't need to do anything
             # special to show the image or the results
@@ -219,7 +234,8 @@ class Tuner:
             # within the target function.
 
         except Exception as e:
-            self.ui.on_error_update(e)
+            # do not let downstream errors kill us
+            self.capture_error(self.get_func_name(cb))
         finally:
             # last thing
             self.after_invoke(ct)
@@ -243,17 +259,13 @@ class Tuner:
             # get a result that we can safely stash
             res = self.json_dump(res)
             res = json.loads(res)
-            if self.__calling_main:
-                if (self.invocation.results.main is None) or not is_return :
-                    # either forwarded call from userland, or
-                    # default result capture and no results saved yet
-                    self.invocation.results.main = res
-                    if is_return: self.invocation.results.return_capture = True
-            else:
-                # the object setting this is the downstream func
-                if (self.invocation.results.downstream is None) or not is_return:
-                    self.invocation.results.downstream = res
-                    if is_return: self.invocation.results.return_capture = True
+
+            if (self.invocation.results.main is None) or not is_return :
+                # either forwarded call from userland, or
+                # default result capture and no results saved yet
+                self.invocation.results.main = res
+                if is_return: self.invocation.results.return_capture = True
+
         finally:
             # Since we do stuff to the results forwarde to us, call back up to the UI
             self.ui.on_show_results(self.invocation.results)
@@ -264,10 +276,6 @@ class Tuner:
     @property
     def func_name(self):
         return self.get_func_name(self.func_main)
-
-    @property
-    def func_name_down(self):
-        return self.get_func_name(self.func_down)
 
     def save_last_invocation(self):
         # we keep track of results, args, tags etc
@@ -375,9 +383,6 @@ class Tuner:
     def image(self):
         return self.frame.image
 
-    @property
-    def in_main(self,) -> bool:
-        return self.__calling_main
 
     @image.setter
     def image(self, val):
@@ -387,19 +392,13 @@ class Tuner:
         # This call is forwarded to us by the UI
         # However, since we're deciding which img it is,
         # call back up to the UI to do a display
-        if self.__calling_main:
-            val = self.__insert_thumbnail(val, self.frame.tn_main)
-            self.frame.user_image_main = val
-            self.ui.on_show_main(val, self.arg_hash)
-        else:
-            # the object setting this is the downstream func
-            val = self.__insert_thumbnail(val, self.frame.tn_down)
-            self.frame.user_image_down = val
-            self.ui.on_show_downstream(val, self.arg_hash)
+        self.frame.user_image_main = val
+        self.ui.on_show_main(val, self.arg_hash)
+
 
     def capture_error(self, func_name):
         self.invocation.errored = True
-        es = FormattedException()
+        es = FormattedException(self.ui.Window)
         self.invocation.error = es.json
         # do an immediate dump to file
         self.save_carousel()
@@ -495,56 +494,11 @@ class Tuner:
         Saves the current image to a temp file in
         the working directory set during initialization.
         '''
-        fname = self.get_temp_file(suffix=".main.png")
+        fname = self.get_temp_file(suffix=".png")
         cv2.imwrite(fname,self.frame.user_image_main)
-        if not self.frame.user_image_down is None:
-            fname = fname.replace(".main.", ".downstream.")
-            cv2.imwrite(fname,self.frame.user_image_down)
+
         return
 
-    @property
-    def thumbnail(self):
-        '''
-        This image is inserted into the upper left hand corner of the main image. Keep it very small.
-        '''
-        if self.__calling_main:
-            return self.frame.tn_main
-        else:
-            return self.frame.tn_down
-
-    @thumbnail.setter
-    def thumbnail(self,val):
-        # this is the current thumbnail
-        if self.__calling_main:
-            self.frame.tn_main = val
-        else:
-            self.frame.tn_down = val
-        return
-
-    def __insert_thumbnail(self, mn, tn):
-        '''
-        mn: main image to insert the thing into
-        '''
-        # do not use the property - use what has been set
-        if not (mn is None or tn is None):
-            # Draw a bounding box 1 pixel wide in the top left corner.
-            # The box should have enough pixels for all of the image
-            bt = 1
-            tl = (3,3)
-            br = (tl[0] + tn.shape[1] + (2*bt), tl[1] + tn.shape[0] + (2*bt))
-            cv2.rectangle(mn,tl,br,Highlight.highlight,thickness=bt)
-            # adjust for offset border
-            tl = (tl[0] + bt, tl[1] + bt)
-            x,x1,y,y1 = self.image_to_array_indices(tl,img_shape=tn.shape)
-
-            tn_dim = np.ndim(tn)
-            if np.ndim(mn) == 3:
-                mn[x:x1,y:y1, 0] = tn if tn_dim == 2 else tn[:,:,0]
-                mn[x:x1,y:y1, 1] = tn if tn_dim == 2 else tn[:,:,1]
-                mn[x:x1,y:y1, 2] = tn if tn_dim == 2 else tn[:,:,2]
-            else:
-                mn[x:x1,y:y1] = tn if tn_dim == 2 else cv2.cvtColor(tn,cv2.COLOR_BGR2GRAY)
-        return mn
     def regress_frame(self):
         if not self.carousel is None:
             self.carousel.reverse()

@@ -19,7 +19,6 @@ from core.CodeTimer import CodeTimer
 
 class BaseTunerUI:
     def __init__(self, func_main
-                , func_downstream = None
                 , pinned_params = None
                 , parms_json = None
                 ):
@@ -42,7 +41,7 @@ class BaseTunerUI:
         # args handler - only deals with the main func
         self._parms = Params(self, func_main, pinned_params, parms_json)
         # tuning engine
-        self.ctx = Tuner(self,self.config,self._parms, func_main,func_downstream)
+        self.ctx = Tuner(self,self.config,self._parms, func_main)
 
         # various UI elements
         self.build()
@@ -296,13 +295,6 @@ class BaseTunerUI:
     def status(self,val):
         self.on_status_update(val)
 
-    @property
-    def thumbnail(self):
-        return self.ctx.thumbnail
-
-    @thumbnail.setter
-    def thumbnail(self, val):
-        self.ctx.thumbnail = val
 
     @property
     def window(self):

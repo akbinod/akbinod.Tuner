@@ -5,7 +5,7 @@ from turtle import onclick
 
 from async_generator import yield_from_
 
-from core.FormattedException import FormattedException
+from core.tk.FormattedException import FormattedException
 
 class StatusBar(UserDict):
     def __init__(self, master:tk.Tk, in_row:int, segments:dict, add_error_panel=True) -> None:
@@ -116,6 +116,9 @@ class StatusBar(UserDict):
             l.grid(in_ = bar, row=0,column=col,sticky="w")
             # this label will not expand
             bar.columnconfigure(col,weight=0)
+            # connect to user event handler
+            if "callback" in segments[key]:
+                l.bind("<Button-1>",segments[key]["callback"])
             super().__setitem__(key,this)
 
         # finally add in the error panel
