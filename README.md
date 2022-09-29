@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
 ```
 
-... hooked up to Tuner, become:
+... hooked up to ThetaUI, become:
 
 ```{python}
 #new import
