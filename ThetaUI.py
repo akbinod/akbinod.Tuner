@@ -37,7 +37,7 @@ from core.Tuner import Tuner
 from core.Params import Params
 from core.BaseTunerUI import BaseTunerUI
 from core.tk.FormattedException import FormattedException
-from constants import *
+from TunerConstants import *
 from core.param import param,list_param,bool_param,dict_param
 
 

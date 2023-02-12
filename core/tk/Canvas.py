@@ -111,6 +111,7 @@ class Canvas():
             get rid of the less than - careful with the signs (e.g., 2/3w - h = 0)
             max width
             max height
+
         '''
 
         def get_screen_split(tsw,tsh):
@@ -175,7 +176,13 @@ class Canvas():
             # between width and height twice here
             # This is to ensure "== 0" instead of
             # "<= 0 or >= 0". It works.
-
+            #    1 nw, 0 nh <= sw   (new width is less than screenwidth)
+            #    0 nw , 1 nh <= sh  (new height is less than screenheight)
+            #    -1 nw , 0 nh <= 0  (new width > 0)
+            #    0 nw, -1 nh <= 0   (new height > 0)
+            #    -1 nw, w/h nh <=0  (width = height * w/h ratio)
+            #    h/w nw, -1 nh <= 0 (height = width * h/w ratio)
+            # flip things on its side to get to the A matrix
             A =matrix( [
                  [1.0,0.0,-1.0, 0.0, -1.0,  h/w]
                 ,[0.0,1.0, 0.0,-1.0,  w/h, -1.0]

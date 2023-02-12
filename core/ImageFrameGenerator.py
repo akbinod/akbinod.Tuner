@@ -1,6 +1,6 @@
 from core.Frame import Frame
 import cv2
-from constants import *
+from TunerConstants import *
 import numpy as np
 import os
 
