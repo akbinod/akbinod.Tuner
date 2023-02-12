@@ -19,7 +19,7 @@ from TunerConfig import TunerConfig
 from core.Params import Params
 from core.PropertyBag import PropertyBag
 from core.Carousel import Carousel
-from constants import *
+from TunerConstants import *
 from core.Frame import Frame
 from core.CodeTimer import CodeTimer
 from core.tk.FormattedException import FormattedException
