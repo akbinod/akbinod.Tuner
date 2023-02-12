@@ -12,8 +12,8 @@ from TunerConfig import TunerConfig
 from core.Tuner import Tuner
 from core.Params import Params
 from core.Carousel import *
-from constants import *
-# import core.TunerUtils as tu
+from TunerConstants import *
+
 from core.CodeTimer import CodeTimer
 
 

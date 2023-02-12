@@ -3,7 +3,7 @@ import cv2
 import os
 import numpy as np
 from core.PropertyBag import PropertyBag
-from constants import *
+from TunerConstants import *
 from core.VideoFrameGenerator import VideoFrameGenerator
 from core.ImageFrameGenerator import ImageFrameGenerator
 
