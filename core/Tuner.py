@@ -24,6 +24,7 @@ from core.Frame import Frame
 from core.CodeTimer import CodeTimer
 from core.tk.FormattedException import FormattedException
 # from core.BaseTunerUI import BaseTunerUI
+from TerminalCapture import TerminalCapture
 
 '''
 Evolved into something that has:
@@ -71,7 +72,7 @@ None of that is needed now because we have a proper UI.
         keep as is - except don't try saving etc
 '''
 class Tuner:
-    def __init__(self, ui, config:TunerConfig, params:Params, func_main):
+    def __init__(self, ui, config:TunerConfig, params:Params, func_main, capture_terminal):
         '''
         Usage:
         This class is the main tuning engine, and is only used by the Ui
@@ -87,6 +88,7 @@ class Tuner:
         self.ui = ui
         self._config = config
         self._params = params
+        self._capture_terminal = capture_terminal
         self.frame = None
 
         # primary function to tune
@@ -187,7 +189,7 @@ class Tuner:
     def invoke(self):
         '''
         Invoke the target and downstream functions. That should
-        updated the display, but that depends on target and/or downstream.
+        update the display, but that depends on target and/or downstream.
         The function may take parameters. Of these, we can handle
         the positional and kwonly parameters. When we have matching
         names in theta and parameters to the function, we can pass
@@ -206,11 +208,12 @@ class Tuner:
 
         ret = True
         ct = CodeTimer(self.func_name)
-        try:
 
-            # now let the context grab what it may
-            self.before_invoke()
+        try:
             with ct:
+                # now let the context grab what it may
+                self.before_invoke()
+
                 cb = self.func_main
                 # invoke
                 p = self._params.resolved_args
@@ -222,7 +225,10 @@ class Tuner:
                     # does not pick up the self binding, but regular
                     # instantiation provides it.
                     if "self" in p: del p["self"]
-                res = cb(**p)
+                with TerminalCapture(capture= self._capture_terminal
+                                        ,name=self.func_name
+                                        ,dir = self._config.wip_dir) as tc:
+                    res = cb(**p)
                 # At this point, the target is done.
                 # Use whatever returns we have captured.
                 self.set_result(res,is_return=True)
@@ -233,9 +239,9 @@ class Tuner:
             # `image` and `result` properties from
             # within the target function.
 
-        except Exception as e:
+        except:
             # do not let downstream errors kill us
-            self.capture_error(self.get_func_name(cb))
+            self.capture_error()
         finally:
             # last thing
             self.after_invoke(ct)
@@ -320,15 +326,12 @@ class Tuner:
         # stuff after viewing it, etc, etc
 
         self.save_last_invocation()
-
-        # this is the current set of args
-        theta = self._params.theta
-        self.arg_hash = (hl.md5((json.dumps(theta)).encode('utf-8'))).hexdigest()
-
         # initialize a complete invocation record
         # with default values here
         self.invocation = PropertyBag()
         self.invocation.duration = ""
+
+
         # flags
         # tags go here - all set to false initially
         self.invocation.update(self._config.default_tag_map)
@@ -338,12 +341,14 @@ class Tuner:
         self.invocation.error = ""
         # args, and results last - just a visual thing
         # get updated args
-        self.invocation.args = theta
+        self.invocation.args = self._params.theta
         self.invocation.results = PropertyBag()
         # set up placeholders
         self.invocation.results.main=None
         self.invocation.results.downstream=None
         self.invocation.force_save = False
+
+        self.arg_hash = (hl.md5((self.json_dump(self.invocation.args)).encode('utf-8'))).hexdigest()
 
         try:
             # give our UI a chance to clean up before an invoke
@@ -356,9 +361,10 @@ class Tuner:
         # important safety tip - do not clear out the last invocation record
         # results from tuner will be grabbed if we need to save them
         # for saving later
-        self.invocation_counter += 1
-        if not ct is None: self.invocation.duration = str(ct)
-        self.ui.on_after_invoke(self.invocation)
+        if not self.invocation is None:
+            self.invocation_counter += 1
+            if not ct is None: self.invocation.duration = str(ct)
+            self.ui.on_after_invoke(self.invocation)
         return
 
     def tag(self, obs:Tags):
@@ -396,14 +402,14 @@ class Tuner:
         self.ui.on_show_main(val, self.arg_hash)
 
 
-    def capture_error(self, func_name):
-        self.invocation.errored = True
-        es = FormattedException(self.ui.Window)
-        self.invocation.error = es.json
-        # do an immediate dump to file
-        self.save_carousel()
-        # finally, set the gui status display
-        self.ui.on_error_update(es)
+    def capture_error(self):
+        if self.invocation:
+            self.invocation.errored = True
+            es = FormattedException(self.ui.Window)
+            self.invocation.error = es.json
+            # do an immediate dump to file
+            self.save_carousel()
+
 
     def force_save(self):
         # save now
@@ -482,9 +488,9 @@ class Tuner:
             with open(fname,"w") as f:
                 f.write(self.json_dump(self.carousel_data))
                 f.write("\n")
-        except Exception as e:
+        except:
             # dont let this screw anything else up
-            self.ui.on_error_update(e)
+            self.ui.on_error_update()
             ret = False
 
         return ret

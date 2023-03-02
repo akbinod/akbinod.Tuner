@@ -5,4 +5,7 @@ from ThetaUI import ThetaUI
 from TunerConfig import TunerConfig
 
 from TunerConstants import SaveStyle, Tags, Highlight
+
+
+from core.TerminalCapture import TerminalCapture
 from core.PropertyBag import PropertyBag

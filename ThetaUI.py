@@ -13,7 +13,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # from typing_extensions import IntVar
-
+from core.ParamFIle import ParamFile
 from core.ParamCheck import ParamCheck
 from core.ParamControl import ParamControl
 from core.ParamCombo import ParamCombo
@@ -27,6 +27,8 @@ from core.tk.StatusBar import StatusBar
 from core.tk.Canvas import Canvas
 from core.CodeTimer import CodeTimer
 from core.VideoFrameGenerator import VideoFrameGenerator
+from core.PersistentTunerDataTable import PersistentTunerDataTable
+from core.TerminalCapture import TerminalCapture
 
 import numpy as np
 import random
@@ -38,20 +40,21 @@ from core.Params import Params
 from core.BaseTunerUI import BaseTunerUI
 from core.tk.FormattedException import FormattedException
 from TunerConstants import *
-from core.param import param,list_param,bool_param,dict_param
+from core.param import param,list_param,bool_param,dict_param,file_param
 
 
 
 class ThetaUI(BaseTunerUI):
     max_display_images = 2
-    def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None, qi_plot_map=None):
+    def __init__(self, func_main, *, func_downstream=None, pinned_params=None, parms_json=None, qi_plot_map=None, capture_terminal=False):
 
-        super().__init__(func_main, pinned_params=pinned_params, parms_json=parms_json)
+        super().__init__(func_main, pinned_params=pinned_params, parms_json=parms_json, capture_terminal=capture_terminal)
 
         # default miliseconds to wait in grid search
         self.gs_delay = 500
         self.__qi = []
         self.__qi_plot_map = qi_plot_map
+        self.__qi_table = PersistentTunerDataTable()
 
 
         # this is where we will put images
@@ -61,6 +64,7 @@ class ThetaUI(BaseTunerUI):
         self.__figure:Figure = None
 
         self.controlrefs = {}
+
 
     def build(self):
         def config_menus(win):
@@ -317,8 +321,8 @@ class ThetaUI(BaseTunerUI):
         try:
             self.__grid_search()
 
-        except Exception as e:
-            self.on_error_update(e)
+        except :
+            self.on_error_update()
 
         return
     def onClick_Clear_QI(self, *args, **kwargs):
@@ -405,16 +409,17 @@ class ThetaUI(BaseTunerUI):
     def on_after_invoke(self,invocation):
         self.results_tree.build(invocation,under_heading="invocation",replace=True)
         self.results_tree.build(self.quite_interesting,under_heading="Quite Interesting",replace=True)
+        self.quite_interesting_table.render()
         # sooooo important to have the next line
         self.winMain.update_idletasks()
         self.winMain.bell()
         return
 
-    def on_error_update(self, e):
+    def on_error_update(self):
         try:
 
             e = FormattedException(self.winMain)
-            self.StatusBar.error = e
+            self.StatusBar.error = e.json
         except:
             pass
         return
@@ -426,6 +431,18 @@ class ThetaUI(BaseTunerUI):
     def on_status_update(self, status):
         self.StatusBar["status"] = status
         return
+
+    def on_file_status_update(self,val):
+        if os.path.exists(val):
+            # true path
+            dir,fi = os.path.split(val)
+            dir = os.path.split(dir)[1]
+            self.StatusBar["file"] = os.path.join(dir,fi)
+        else:
+            # no idea what got sent in here as a path - use as is
+            self.StatusBar["file"] = val
+        return
+
     def on_click_status_file(self, *args):
         self.winMain.clipboard_clear()
         self.winMain.clipboard_append(self.StatusBar["file"])
@@ -518,7 +535,7 @@ class ThetaUI(BaseTunerUI):
             cc = tk.Frame(self.tuner_frame,border=2, padx=2,pady=2,relief=tk.FLAT)
             cc.rowconfigure(0,weight=0)
             cc.columnconfigure(0,weight = 0)
-            if isinstance(c,ttk.Checkbutton):
+            if isinstance(c,(ttk.Checkbutton,ttk.Button)):
                 # this thing comes with its own label
                 cc.columnconfigure(0,weight = 1)
                 c.grid(in_=cc,row=0,column=0,sticky="nwe")
@@ -543,7 +560,10 @@ class ThetaUI(BaseTunerUI):
             # build checkbox
             c = ttk.Checkbutton(None,text=param.name,offvalue=0,onvalue=1)
             self.controlrefs[param.name] = ParamCheck(c,param)
-
+        elif isinstance(param,file_param):
+            # build command button
+            c = ttk.Button(None,text=param.name)
+            self.controlrefs[param.name] = ParamFile(c,param, self)
         else:
             # build spinbox
             c = ttk.Spinbox(None,justify="left",values=list(param.range),wrap=False)
@@ -585,7 +605,7 @@ class ThetaUI(BaseTunerUI):
 
 
         except:
-            self.on_error_update(None)
+            self.on_error_update()
         finally:
             pass
         return
@@ -609,8 +629,8 @@ class ThetaUI(BaseTunerUI):
             self.on_await_user = kp.sink
             ret = self.ctx.grid_search()
 
-        except Exception as e:
-            self.on_error_update(e)
+        except:
+            self.on_error_update()
         finally:
             self.in_grid_search = False
             if kp.value == False:
@@ -629,14 +649,15 @@ class ThetaUI(BaseTunerUI):
         '''
         try:
             self.headless = False
+
             # enter the carousel
             self.ctx.enter_carousel(carousel, self.headless)
             # turn over control to the message pump
             self.on_await_user()
 
             # hang out - see wht the user wants to do :)
-        except Exception as e:
-            self.on_error_update(e)
+        except :
+            self.on_error_update()
         finally:
             pass
         return
@@ -693,8 +714,34 @@ class ThetaUI(BaseTunerUI):
 
     @quite_interesting.setter
     def quite_interesting(self,val:dict):
+        '''
+        '''
         self.__qi.append(val)
 
+        return
+    @property
+    def quite_interesting_table(self):
+        return self.__qi_table
+
+    @quite_interesting_table.setter
+    def quite_interesting_table(self,val):
+        '''
+        val is a jason object with 2 keys.
+        "title": what the tab is named
+        "data": list (1..N) of json objects.
+        The first entry in the list is used to generate the column names
+        for the table. Data from all other objects in the list are
+        accessed using these same keys. Traversal is only one level deep
+        so nested objects are not rendered. If a 1st level key has an object value
+        then it is ignored, and {obj} is placed in the corresponding column.
+        A combination of the title and a hash of the keys of the
+        first object uniquely identifies a dataset.
+        On subsequent calls, when "title_$keyhash" matches an existing dataset
+        then items from "data" are appended to an existing table;
+        in all other cases a new
+        table is created in a new tab.
+        '''
+        self.__qi_table.append(val)
         return
     def save_qi(self):
 
@@ -704,3 +751,13 @@ class ThetaUI(BaseTunerUI):
     def Window(self):
         return self.winMain
 
+    def askopenfilename(self,*,
+                        title="Open a file"
+                        ,filetypes=None
+                        ,defaultextension=None):
+        f = fd.askopenfilename(
+                                title=title
+                                ,filetypes=filetypes
+                                ,defaultextension=defaultextension)
+
+        return f

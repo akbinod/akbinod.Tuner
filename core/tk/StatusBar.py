@@ -173,7 +173,7 @@ class StatusBar(UserDict):
 
     def onclick_error(self, *args, **kwargs):
         if self.__error is not None:
-            self.error.show(self.master)
+            self.error.show()
         return
     @property
     def status(self):

@@ -21,6 +21,7 @@ class BaseTunerUI:
     def __init__(self, func_main
                 , pinned_params = None
                 , parms_json = None
+                , capture_terminal = False
                 ):
         '''
         Tuning interface for users.
@@ -41,7 +42,7 @@ class BaseTunerUI:
         # args handler - only deals with the main func
         self._parms = Params(self, func_main, pinned_params, parms_json)
         # tuning engine
-        self.ctx = Tuner(self,self.config,self._parms, func_main)
+        self.ctx = Tuner(self,self.config,self._parms, func_main,capture_terminal)
 
         # various UI elements
         self.build()
@@ -98,6 +99,22 @@ class BaseTunerUI:
 
         return self._parms.track_dict(name,dict_like,default_item_key,return_key)
 
+    def track_file(self, name, title, invoke_on_change=True):
+        '''
+        Add an open a file dialog - it's value is the filename
+        '''
+
+        return self._parms.track_file(name,title,invoke_on_change)
+
+    def track_enum(self, name, enum:Enum):
+        '''
+        Add a list of values to be tuned.Please see the readme for details.
+        enum: An Enum to be ... enumerated .
+        default_item: Initial pick.
+        '''
+
+        return self._parms.track_enum(name,enum)
+
     def on_before_invoke(self):
         '''
         Called from the tuner. Override this if you want to
@@ -112,7 +129,7 @@ class BaseTunerUI:
         '''
         return
 
-    def on_error_update(self, error):
+    def on_error_update(self):
         '''
         For downstream objects  to communicate errors.
         '''
@@ -129,6 +146,12 @@ class BaseTunerUI:
     def on_status_update(self, status):
         '''
         For downstream objects to set general status
+        '''
+        # Must override.
+        raise NotImplementedError()
+    def on_file_status_update(self, status):
+        '''
+        For downstream objects to set file related status
         '''
         # Must override.
         raise NotImplementedError()
@@ -295,7 +318,14 @@ class BaseTunerUI:
     def status(self,val):
         self.on_status_update(val)
 
+    @property
+    def file_status(self):
+        return ""
 
+    @file_status.setter
+    def file_status(self,val):
+        self.on_file_status_update(val)
+        return
     @property
     def window(self):
         return self.ctx.func_name

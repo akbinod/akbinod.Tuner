@@ -1,5 +1,5 @@
 import cv2
-
+from enum import Enum
 class param():
     '''
     This class should be left as is.
@@ -57,7 +57,8 @@ class param():
         # Just put away whatever value you get.
         # We'll interpret (e.g. nulls) when get_value is accessed.
         self._value = val
-
+        # # this gives derivers a chance to finesse the value
+        # val = self.get_value()
         if headless_op:
             # This call is from code, not from an event generated
             # by a click. So update the UI without triggerin an update event
@@ -208,3 +209,42 @@ class dict_param(list_param):
         else:
             ret = self.data[key]
         return ret
+
+class file_param(param):
+    def __init__(self, ui, name, title, invoke_on_change) -> None:
+        '''
+        Represents a file name.
+        '''
+        self.title = title
+        self.fileName = None
+        self.invoke_on_change = invoke_on_change
+        super().__init__(ui, name,max=0, min=0, default=0)
+
+    def get_value(self):
+        if self._value == self.min: return None
+        return self._value
+    def set_value(self,val, headless_op=False):
+        # we're not looking up an index or anything - just our fileName
+        return super().set_value(self.fileName,headless_op)
+class enum_param(list_param):
+    def __init__(self, ui, name, *, enum:Enum) -> None:
+        '''
+        Represents a list of values derived from an Enum.
+        '''
+        if enum is None: raise ValueError("Must have an Enum to track.")
+
+        self.enum = enum
+        data_list = [e.name for e in enum]
+        display_list = data_list
+
+        super().__init__(ui, name
+                        , data_list = data_list
+                        , display_list = display_list
+                        # pick the first item by default
+                        , default_item=0
+                        , return_index= False)
+    def get_value(self):
+        # we just display the enum.name, so that is what we will get back
+        ret = super().get_value()
+
+        return self.enum[ret]

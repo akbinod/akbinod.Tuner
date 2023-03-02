@@ -1,6 +1,6 @@
-from core.param import param, bool_param, dict_param, list_param
+from core.param import param, bool_param, dict_param, list_param, file_param, enum_param
 import inspect
-
+from enum import Enum
 
 class prop:
 
@@ -13,6 +13,7 @@ class prop:
 
         cb_read:    callback to the @property
         cb_write:   (careful with that axe Eugene)
+
         '''
 
         self.get_val_method = cb_read
@@ -169,6 +170,9 @@ class Params():
             elif ty == dict:
                 # track from a dict/json
                 self.track_dict(parm,val, return_key=False)
+            elif ty == Enum:
+                # track from an enum
+                self.track_enum(parm,val)
             else:
                 # Something we cannot tune, so curry it.
                 # As long as it's not 'self'
@@ -310,6 +314,9 @@ class Params():
                     default_item_key = this["default_item_key"] if "default_item_key" in this else None
                     return_key = this["return_key"] if "return_key" in this else True
                     self.track_dict(key,dict_like=dict_like,default_item_key=default_item_key,return_key=return_key)
+                elif this_type == "Enum":
+                    # TODO: find a safe way of doing this
+                    pass
 
 
         return
@@ -393,7 +400,26 @@ class Params():
                             )
             self.__track_param(name,t)
         return
+    def track_file(self, name, title,invoke_on_change):
+        '''
+        Add a file to use as input.
+        '''
+        t = file_param(self.ui,name=name,title=title,invoke_on_change=invoke_on_change)
+        self.__track_param(name,t)
+        return
+    def track_enum(self, name, enum:Enum):
+        '''
+        Add a list of values to be tuned.Please see the readme for details.
+        enum: An Enum to be ... enumerated .
+        default_item: Initial pick.
+        '''
 
+        if not enum is None:
+            t = enum_param(self.ui,name
+                            ,enum=enum
+                            )
+        self.__track_param(name,t)
+        return
     def get_ranges(self, filter:list=None) -> dict:
         '''
         Returns a dict containing the range of each of the
