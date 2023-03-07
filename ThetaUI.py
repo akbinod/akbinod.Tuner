@@ -329,9 +329,6 @@ class ThetaUI(BaseTunerUI):
         self.__qi.clear()
         return
     def onClick_Plot_QI(self, *args, **kwargs):
-        # TODO: make a gui for building this map
-        # colors = ['blue', 'green','red','cyan','magenta','yellow','black']
-        colors = ['tab:blue', 'tab:orange', 'tab:green','tab:red','tab:purple','tab:brown','tab:pink','tab:gray','tab:olive','tab:cyan']
         x = None
         x_fld = None
         map = self.__qi_plot_map
@@ -345,20 +342,12 @@ class ThetaUI(BaseTunerUI):
             x_fld = map["x"]
             if not x_fld in qi[0]: return
             xlabel = x_fld
-        else:
-            # just a simple series - use the ordinal position as x
-            x = np.linspace(1, len(qi), len(qi))
-            xlabel = "index"
+
 
         y_flds = map["y"]
         # check that all the things in the y set actually exist
         for item in y_flds:
             if not item in qi[0]: return
-        # mix it up, get a random bunch of colors
-        these = random.choices(range(len(colors)),k=len(y_flds))
-        these_colors = []
-        for i in these:
-            these_colors.append(colors[i])
 
         if x_fld: x = np.empty(shape=(len(qi),),dtype=np.object_)
         y = np.empty(shape=(len(qi),len(y_flds)))
@@ -367,11 +356,70 @@ class ThetaUI(BaseTunerUI):
             for j, col in enumerate(y_flds):
                 y[i][j] = item[col]
 
+        new_map = {
+                "title":map["title"]
+                ,"x":{
+                    "label":x_fld
+                    ,"data": x
+                }
+                ,"y":{
+                    "labels":y_flds
+                    ,"data": y
+                }
+            }
+        self.plot_figure(new_map)
+
+        return
+    def plot_figure(self,map):
+        '''
+        Does a 'better than nothing' plot for quick checks.
+        params:
+        map: json in the form
+            {
+                "title":""
+                // when x is not present, a simple 1...N is used
+                ,"x":{
+                    "label":""
+                    ,"data": np.ndarray with shape (1,N)
+                }
+                // must be present
+                ,"y":{
+                    "labels":[N] <- one label for each column in data
+                    ,"data":np.ndarray with the shape (m, N)
+                }
+            }
+        '''
+        if map is None: return
+        # make no other attempt to validate data - let it all bubble up to the surface
+        y = map["y"]
+        num_lines = y["data"].shape[1]
+        num_points = y["data"].shape[0]
+
+        xlabel = "index"
+        x = map["x"] if "x" in map else None
+        if not x is None:
+            x = None if x["data"] is None else x["data"]
+            xlabel = xlabel if x["label"] is None else x["label"]
+        else:
+            # just a simple series - use the ordinal position as x
+            x = np.linspace(1, num_points, num_points)
+
+
+        # TODO: make a gui for building this map
+        # colors = ['blue', 'green','red','cyan','magenta','yellow','black']
+        colors = ['tab:blue', 'tab:orange', 'tab:green','tab:red','tab:purple','tab:brown','tab:pink','tab:gray','tab:olive','tab:cyan']
+
+        # mix it up, get a random bunch of colors
+        these = random.choices(range(len(colors)),k=num_lines)
+        these_colors = []
+        for i in these:
+            these_colors.append(colors[i])
+
         handles = []
         fig:Figure = Figure()
         ax = None
         tkw = dict(size=4, width=1.5)
-        for i,label in enumerate(y_flds):
+        for i,label in enumerate(y["labels"]):
             if not ax:
                 ax = fig.add_subplot()
                 ax.set_xlabel(xlabel)
@@ -379,8 +427,8 @@ class ThetaUI(BaseTunerUI):
                 style = "-"
             else:
                 ax = ax.twinx()
-                style = "o"
-            data = y[:,i]
+                style = "-"
+            data = y["data"][:,i]
             ax.set_ylim(np.min(data), np.max(data))
             ax.set_ylabel(label)
             ax.yaxis.label.set_color(these_colors[i])
@@ -388,15 +436,13 @@ class ThetaUI(BaseTunerUI):
             p, = ax.plot(x, data, style, label=label,color=these_colors[i])
             handles.append(p)
 
-
-
-        if 'title' in map: ax.set_title(map['title'])
+        if "title" in map: ax.set_title(map["title"])
         ax.legend(handles=handles)
         # if 'ylabel' in map: ax.set_ylabel(map['ylabel'])
         # if 'xlabel' in map: ax.set_xlabel(map['xlabel'])
         self.figure = fig
-
         return
+
     def on_before_invoke(self):
         '''
         Called from the tuner.
